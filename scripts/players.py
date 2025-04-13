@@ -12,56 +12,67 @@ logger = logging.getLogger(__name__)
 
 class PlayerRating:
     def __init__(self, release=None, release_for_squads=None, file_path=None):
-        self.data = pd.DataFrame()
-        if file_path:
-            self.data = pd.DataFrame.from_csv(file_path, index_col=0)
-            return
         if release is None:
             raise Exception("no release is passed")
         if release_for_squads is None:
             raise Exception("no release for squads is passed")
-        players_dict = {
+
+        if file_path:
+            self.data = pd.DataFrame.from_csv(file_path, index_col=0)
+            return
+
+        self.release = release
+        self.release_for_squads = release_for_squads
+        self.data = pd.DataFrame()
+        self.players_dict = {
             player_rating["player_id"]: player_rating | {"top_bonuses": []}
-            for player_rating in release.player_rating_set.values("player_id", "rating")
+            for player_rating in self.release.player_rating_set.values(
+                "player_id", "rating"
+            )
         }
 
-        if release.date == tools.LAST_OLD_RELEASE:
-            # In this case we have to load individual bonuses from the special table.
-            tournament_end_dates = db_tools.get_tournament_end_dates()
-            age_in_weeks_by_tournament_id = {}
-            for item in models.Player_rating_by_tournament_old.objects.values(
-                "player_id", "tournament_id", "rating_original", "rating_now"
-            ):
-                if item["player_id"] in players_dict:
-                    if item["tournament_id"] not in age_in_weeks_by_tournament_id:
-                        age_in_weeks_by_tournament_id[item["tournament_id"]] = (
-                            get_age_in_weeks(
-                                tournament_end_dates[item["tournament_id"]],
-                                release_for_squads.date,
-                            )
-                        )
-                    bonus = models.Player_rating_by_tournament(
-                        release_id=release.id,
-                        player_id=item["player_id"],
-                        weeks_since_tournament=age_in_weeks_by_tournament_id[
-                            item["tournament_id"]
-                        ],
-                        tournament_id=item["tournament_id"],
-                        initial_score=item["rating_original"],
-                        cur_score=item["rating_now"],
-                    )
-                    players_dict[item["player_id"]]["top_bonuses"].append(bonus)
+        if self.release.date == tools.LAST_OLD_RELEASE:
+            self.load_last_old_release()
         else:
-            for player_bonus in release.player_rating_by_tournament_set.all():
-                players_dict[player_bonus.player_id]["top_bonuses"].append(player_bonus)
+            for player_bonus in self.release.player_rating_by_tournament_set.all():
+                self.players_dict[player_bonus.player_id]["top_bonuses"].append(
+                    player_bonus
+                )
         # adding base_team_ids
         self.data = (
-            pd.DataFrame(players_dict.values())
+            pd.DataFrame(self.players_dict.values())
             .set_index("player_id")
             .join(
-                db_tools.get_base_teams_for_players(release_for_squads.date), how="left"
+                db_tools.get_base_teams_for_players(self.release_for_squads.date),
+                how="left",
             )
         )
+
+    def load_last_old_release(self):
+        tournament_end_dates = db_tools.get_tournament_end_dates()
+        age_in_weeks_by_tournament_id = {}
+        for item in models.Player_rating_by_tournament_old.objects.values(
+            "player_id", "tournament_id", "rating_original", "rating_now"
+        ):
+            if item["player_id"] in self.players_dict:
+                if item["tournament_id"] not in age_in_weeks_by_tournament_id:
+                    age_in_weeks_by_tournament_id[item["tournament_id"]] = (
+                        get_age_in_weeks(
+                            tournament_end_dates[item["tournament_id"]],
+                            self.release_for_squads.date,
+                        )
+                    )
+                bonus = models.Player_rating_by_tournament(
+                    release_id=self.release.id,
+                    player_id=item["player_id"],
+                    weeks_since_tournament=age_in_weeks_by_tournament_id[
+                        item["tournament_id"]
+                    ],
+                    tournament_id=item["tournament_id"],
+                    initial_score=item["rating_original"],
+                    cur_score=item["rating_now"],
+                )
+                self.players_dict[item["player_id"]]["top_bonuses"].append(bonus)
 
     def calc_rt(self, player_ids, q=None):
         """
@@ -108,10 +119,3 @@ class PlayerRating:
             return sum(x.cur_score for x in v)
 
         self.data["rating"] = self.data["top_bonuses"].map(sum_ratings_now)
-
-    # For debug purposes
-    def print_top_bonuses(self, player_id: int):
-        for item in self.data.loc[player_id]["top_bonuses"]:
-            logger.debug(
-                f"{item.tournament_id} {item.initial_score} {item.weeks_since_tournament} {item.cur_score}"
-            )
