@@ -17,8 +17,6 @@ pip install -r requirements.txt
 ```
 
 ## Commands
-* `python manage.py import_release N` reads teams and players ratings for release_id N from API (e.g. 1443 stands for 2020-04-03 release)
-  and dumps it to b.player_rating, b.team_rating and b.player_rating_by_tournament (top bonuses for each player).
 * `python manage.py calc_all_releases [--first_to_calc=2021-09-09]` calculates all releases from first_to_calc until today.
 * `python manage.py calc_release YYYY-MM-DD` reads previous release data from our DB (it must already exist)
   and creates new release for YYYY-MM-DD (this date must be Thursday for 2021+ and Friday for 2020-).

@@ -3,7 +3,6 @@ from typing import List
 import logging
 
 from .tools import calc_tech_rating, get_age_in_weeks
-from .api_util import get_players_release
 from .constants import N_BEST_TOURNAMENTS_FOR_PLAYER_RATING
 from scripts import db_tools, tools
 from b import models
@@ -12,22 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 class PlayerRating:
-    def __init__(
-        self, release=None, release_for_squads=None, file_path=None, api_release_id=None
-    ):
+    def __init__(self, release=None, release_for_squads=None, file_path=None):
         self.data = pd.DataFrame()
-        if api_release_id:
-            logger.warning(
-                f"(DEPRECATED) Creating PlayerRating by old API from release_id {api_release_id}"
-            )
-            raw_rating = get_players_release(api_release_id)
-            raw_rating = raw_rating[[" ИД", "ИД базовой команды", "Рейтинг"]]
-            raw_rating.columns = ["player_id", "base_team_id", "rating"]
-            raw_rating.drop_duplicates(subset="player_id", inplace=True)
-            self.data = raw_rating.set_index("player_id")
-            self.data["prev_rating"] = None
-            self.data["top_bonuses"] = [[] for _ in range(len(self.data))]
-            return
         if file_path:
             self.data = pd.DataFrame.from_csv(file_path, index_col=0)
             return
