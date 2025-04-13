@@ -72,6 +72,7 @@ class TestReleases(unittest.TestCase):
         player_rating = Player_rating.objects.get(release=self.release, player_id=77673)
         self.assertEqual(12434, player_rating.rating)
         self.assertEqual(33, player_rating.rating_change)
+        self.assertEqual(121, player_rating.place)
 
     def test_missing_player_rating_values(self):
         self.assertEqual(

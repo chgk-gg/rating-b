@@ -128,6 +128,7 @@ def save_player_rating(release_id: int, player_rating: PlayerRating):
                 if player["prev_rating"]
                 else "NULL"
             ),
+            "place": player["place"],
         }
         for player_id, player in player_rating.data.iterrows()
         if player["rating"] > 0
