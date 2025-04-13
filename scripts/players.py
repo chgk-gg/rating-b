@@ -23,7 +23,6 @@ class PlayerRating:
 
         self.release = release
         self.release_for_squads = release_for_squads
-        self.data = pd.DataFrame()
         self.players_dict = {
             player_rating["player_id"]: player_rating | {"top_bonuses": []}
             for player_rating in self.release.player_rating_set.values(
@@ -46,6 +45,11 @@ class PlayerRating:
                 db_tools.get_base_teams_for_players(self.release_for_squads.date),
                 how="left",
             )
+        )
+
+    def update_places(self):
+        self.data["place"] = (
+            self.data["rating"].rank(ascending=False, method="min").astype(int)
         )
 
     def load_last_old_release(self):
@@ -119,3 +123,4 @@ class PlayerRating:
             return sum(x.cur_score for x in v)
 
         self.data["rating"] = self.data["top_bonuses"].map(sum_ratings_now)
+        self.update_places()
