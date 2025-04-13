@@ -12,7 +12,6 @@ from django.db import connection, transaction
 
 from b import models
 
-from . import api_util
 from . import db_tools
 from . import tools
 from . import tournament as trnmt
@@ -86,14 +85,6 @@ def make_step_for_teams_and_players(
     final_teams.data["rating"] = np.maximum(final_teams.data["rating"], 0)
     final_players.recalc_rating()
     return final_teams, final_players
-
-
-# Reads the date for release at chgk.info with provided ID
-def get_api_release_date(release_id: int) -> datetime.date:
-    release_json = api_util.url2json(
-        f"http://api.rating.chgk.net/releases/{release_id}"
-    )
-    return datetime.datetime.fromisoformat(release_json["date"]).date()
 
 
 # Saves provided teams and players ratings to our DB for provided release date
@@ -238,21 +229,6 @@ def dump_rating_for_next_release(
                 "dump_rating_for_next_release: there is problem with updating team_rating.rating_for_next_release for "
                 + f"team_id {team_id}, new rating {new_rating}: {n_changed} rows are affected."
             )
-
-
-# Copies release (teams and players) with provided ID from API to provided SCHEMA_NAME in our DB
-def import_release(api_release_id: int):
-    team_rating = TeamRating(api_release_id=api_release_id)
-    player_rating = PlayerRating(api_release_id=api_release_id)
-    # TODO: Also read top_bonuses for players
-
-    release_date = get_api_release_date(api_release_id)
-    release, _ = models.Release.objects.get_or_create(date=release_date)
-    dump_release(release, team_rating, player_rating, [])
-    logger.debug(
-        f"Loaded {len(team_rating.data)} teams and {len(player_rating.data)} players from "
-        f"release {release_date} (ID in API {api_release_id})."
-    )
 
 
 # Loads tournaments from our DB that finish between given releases.

@@ -1,4 +1,3 @@
-from .api_util import get_teams_release
 from .tools import calc_tech_rating
 from .tournament import Tournament
 from .players import PlayerRating
@@ -15,8 +14,8 @@ from typing import List, Tuple
 
 
 class TeamRating:
-    def __init__(self, api_release_id=None, filename=None, teams_list=None):
-        if not (api_release_id or filename or teams_list):
+    def __init__(self, filename=None, teams_list=None):
+        if not (filename or teams_list):
             raise Exception(
                 "provide release id, or file with rating, or list of dicts!"
             )
@@ -24,10 +23,7 @@ class TeamRating:
         if teams_list:
             self.data = pd.DataFrame(teams_list)
         else:
-            if api_release_id:
-                raw_rating = get_teams_release(api_release_id)
-            else:
-                raw_rating = pd.read_csv(filename)
+            raw_rating = pd.read_csv(filename)
             raw_rating = raw_rating[["Ид", "Место", "Рейтинг", "ТРК по БС"]]
             raw_rating.columns = ["team_id", "place", "rating", "trb"]
             self.data = raw_rating
