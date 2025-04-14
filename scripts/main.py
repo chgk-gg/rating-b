@@ -61,10 +61,10 @@ def make_step_for_teams_and_players(
     if new_player_ids:
         new_players = (
             pd.DataFrame(
-                [
+                (
                     {"player_id": player_id, "rating": 0, "top_bonuses": []}
                     for player_id in new_player_ids
-                ]
+                )
             )
             .set_index("player_id")
             .join(db_tools.get_base_teams_for_players(new_release.date), how="left")
