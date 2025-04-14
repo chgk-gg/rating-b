@@ -118,7 +118,7 @@ def delete_previous_results(release_id):
 
 
 def save_player_rating(release_id: int, player_rating: PlayerRating):
-    player_ratings = [
+    player_ratings = (
         {
             "release_id": release_id,
             "player_id": player_id,
@@ -132,12 +132,12 @@ def save_player_rating(release_id: int, player_rating: PlayerRating):
         }
         for player_id, player in player_rating.data.iterrows()
         if player["rating"] > 0
-    ]
+    )
     db_tools.fast_insert("player_rating", player_ratings)
 
 
 def save_team_ratings(release_id: int, teams: pd.DataFrame):
-    team_ratings = [
+    team_ratings = (
         {
             "release_id": release_id,
             "team_id": team_id,
@@ -156,12 +156,12 @@ def save_team_ratings(release_id: int, teams: pd.DataFrame):
             ),
         }
         for team_id, team in teams.iterrows()
-    ]
+    )
     db_tools.fast_insert("team_rating", team_ratings)
 
 
 def save_player_rating_by_tournament(release_id: int, player_rating: PlayerRating):
-    bonuses = [
+    bonuses = (
         {
             "release_id": release_id,
             "player_id": player_id,
@@ -174,18 +174,18 @@ def save_player_rating_by_tournament(release_id: int, player_rating: PlayerRatin
         for player_id, player in player_rating.data.iterrows()
         if player["rating"] != 0
         for rating_by_trnmt in player["top_bonuses"]
-    ]
+    )
     db_tools.fast_insert("player_rating_by_tournament", bonuses)
 
 
 def save_tournaments_in_release(
     release_id: int, tournaments: Iterable[trnmt.Tournament]
 ):
-    tournaments_in_release = [
+    tournaments_in_release = (
         {"release_id": release_id, "tournament_id": tournament.id}
         for tournament in tournaments
         if tournament.is_in_maii_rating
-    ]
+    )
     db_tools.fast_insert("tournament_in_release", tournaments_in_release)
 
 
