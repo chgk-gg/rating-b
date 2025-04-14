@@ -49,7 +49,7 @@ class PlayerRating:
 
     def update_places(self):
         self.data["place"] = (
-            self.data["rating"].rank(ascending=False, method="min").astype(int)
+            self.data["rating"].rank(ascending=False, method="min").astype("Int32")
         )
 
     def load_last_old_release(self):
