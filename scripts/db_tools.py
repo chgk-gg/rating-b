@@ -47,15 +47,16 @@ def fast_insert(table: str, data: Iterable[dict], batch_size: int = 5000):
         # Process remaining rows in the final batch
         if batch:
             values = ",\n".join(
-                f'({",".join(str(row[column]) for column in columns)})'
-                for row in batch
+                f'({",".join(str(row[column]) for column in columns)})' for row in batch
             )
             cursor.execute(
                 f"INSERT INTO {SCHEMA_NAME}.{table} ({columns_joined}) VALUES {values}"
             )
 
 
-def bulk_insert_copy(table: str, data: Iterable[dict], schema: str = SCHEMA_NAME, batch_size: int = 50000):
+def bulk_insert_copy(
+    table: str, data: Iterable[dict], schema: str = SCHEMA_NAME, batch_size: int = 50000
+):
     """
     Fast bulk insert using PostgreSQL's COPY command.
 
@@ -70,7 +71,7 @@ def bulk_insert_copy(table: str, data: Iterable[dict], schema: str = SCHEMA_NAME
     """
     total_start_time = time.time()
     total_rows = 0
-    qualified_table = f"{schema}.{table}"
+    qualified_table = table
 
     data_iter = iter(data)
     try:
@@ -94,16 +95,14 @@ def bulk_insert_copy(table: str, data: Iterable[dict], schema: str = SCHEMA_NAME
         try:
             batch_df = pd.DataFrame(batch)
             buffer = StringIO()
-            batch_df[columns].to_csv(buffer, index=False, header=False,
-                                     sep='\t', na_rep='\\N', quoting=None)
+            batch_df[columns].to_csv(
+                buffer, index=False, header=False, sep="\t", na_rep="\\N", quoting=None
+            )
             buffer.seek(0)
 
             batch_start_time = time.time()
             cursor.copy_from(
-                file=buffer,
-                table=qualified_table,
-                columns=columns,
-                null='\\N'
+                file=buffer, table=qualified_table, columns=columns, null="\\N"
             )
 
             batch_size_actual = len(batch)
@@ -130,15 +129,18 @@ def bulk_insert_copy(table: str, data: Iterable[dict], schema: str = SCHEMA_NAME
                 batch_df = pd.DataFrame(batch)
 
                 buffer = StringIO()
-                batch_df[columns].to_csv(buffer, index=False, header=False,
-                                         sep='\t', na_rep='\\N', quoting=None)
+                batch_df[columns].to_csv(
+                    buffer,
+                    index=False,
+                    header=False,
+                    sep="\t",
+                    na_rep="\\N",
+                    quoting=None,
+                )
                 buffer.seek(0)
 
                 cursor.copy_from(
-                    file=buffer,
-                    table=qualified_table,
-                    columns=columns,
-                    null='\\N'
+                    file=buffer, table=qualified_table, columns=columns, null="\\N"
                 )
 
                 batch_size_actual = len(batch)
