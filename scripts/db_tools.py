@@ -55,7 +55,7 @@ def fast_insert(table: str, data: Iterable[dict], batch_size: int = 5000):
 
 
 def bulk_insert_copy(
-    table: str, data: Iterable[dict], schema: str = SCHEMA_NAME, batch_size: int = 50000
+    table: str, data: Iterable[dict], batch_size: int = 50000
 ):
     """
     Fast bulk insert using PostgreSQL's COPY command.
@@ -63,7 +63,6 @@ def bulk_insert_copy(
     Args:
         table: Table name to insert into
         data: Iterable of dictionaries with data to insert
-        schema: Database schema name
         batch_size: Number of rows per batch
 
     Returns:
@@ -71,14 +70,18 @@ def bulk_insert_copy(
     """
     total_start_time = time.time()
     total_rows = 0
-    qualified_table = table
+
+    # Function to convert string "NULL" to None
+    def normalize_nulls(row):
+        return {k: None if v == "NULL" else v for k, v in row.items()}
 
     data_iter = iter(data)
     try:
         batch = []
         for _ in range(min(batch_size, 1000)):
             try:
-                batch.append(next(data_iter))
+                item = next(data_iter)
+                batch.append(normalize_nulls(item))
             except StopIteration:
                 break
 
@@ -93,16 +96,26 @@ def bulk_insert_copy(
     with connection.cursor() as cursor:
         cursor.execute("BEGIN")
         try:
-            batch_df = pd.DataFrame(batch)
-            buffer = StringIO()
-            batch_df[columns].to_csv(
-                buffer, index=False, header=False, sep="\t", na_rep="\\N", quoting=None
-            )
-            buffer.seek(0)
+            # Process batches with NULL handling
+            def process_batch(batch):
+                batch_df = pd.DataFrame(batch)
+                buffer = StringIO()
+                batch_df[columns].to_csv(
+                    buffer,
+                    index=False,
+                    header=False,
+                    sep="\t",
+                    na_rep="\\N",
+                    quoting=None,
+                )
+                buffer.seek(0)
+                return buffer
 
+            # Process first batch
+            buffer = process_batch(batch)
             batch_start_time = time.time()
             cursor.copy_from(
-                file=buffer, table=qualified_table, columns=columns, null="\\N"
+                file=buffer, table=table, columns=columns, null="\\N"
             )
 
             batch_size_actual = len(batch)
@@ -114,11 +127,13 @@ def bulk_insert_copy(
                 f"({batch_size_actual / batch_time:.1f} rows/sec)"
             )
 
+            # Process remaining batches
             while True:
                 batch = []
                 for _ in range(batch_size):
                     try:
-                        batch.append(next(data_iter))
+                        item = next(data_iter)
+                        batch.append(normalize_nulls(item))
                     except StopIteration:
                         break
 
@@ -126,21 +141,10 @@ def bulk_insert_copy(
                     break
 
                 batch_start_time = time.time()
-                batch_df = pd.DataFrame(batch)
-
-                buffer = StringIO()
-                batch_df[columns].to_csv(
-                    buffer,
-                    index=False,
-                    header=False,
-                    sep="\t",
-                    na_rep="\\N",
-                    quoting=None,
-                )
-                buffer.seek(0)
+                buffer = process_batch(batch)
 
                 cursor.copy_from(
-                    file=buffer, table=qualified_table, columns=columns, null="\\N"
+                    file=buffer, table=table, columns=columns, null="\\N"
                 )
 
                 batch_size_actual = len(batch)
