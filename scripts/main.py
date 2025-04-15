@@ -178,9 +178,9 @@ def save_player_rating_by_tournament(release_id: int, player_rating: PlayerRatin
             "player_id": player_id,
             "tournament_result_id": rating_by_trnmt.tournament_result_id or "NULL",
             "tournament_id": rating_by_trnmt.tournament_id or "NULL",
-            "initial_score": rating_by_trnmt.initial_score,
+            "initial_score": int(rating_by_trnmt.initial_score),
             "weeks_since_tournament": rating_by_trnmt.weeks_since_tournament,
-            "cur_score": rating_by_trnmt.cur_score,
+            "cur_score": int(rating_by_trnmt.cur_score),
         }
         for player_id, player in player_rating.data.iterrows()
         if player["rating"] != 0
