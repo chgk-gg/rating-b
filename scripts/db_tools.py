@@ -1,9 +1,11 @@
 import datetime
+import time
 from typing import Dict, List, Iterable
 from django.db.models import F, Q
 from django.db import connection
 import logging
 import pandas as pd
+from io import StringIO
 from b import models
 from .constants import SCHEMA_NAME
 
@@ -51,6 +53,117 @@ def fast_insert(table: str, data: Iterable[dict], batch_size: int = 5000):
             cursor.execute(
                 f"INSERT INTO {SCHEMA_NAME}.{table} ({columns_joined}) VALUES {values}"
             )
+
+
+def bulk_insert_copy(table: str, data: Iterable[dict], schema: str = SCHEMA_NAME, batch_size: int = 50000):
+    """
+    Fast bulk insert using PostgreSQL's COPY command.
+
+    Args:
+        table: Table name to insert into
+        data: Iterable of dictionaries with data to insert
+        schema: Database schema name
+        batch_size: Number of rows per batch
+
+    Returns:
+        Total number of records inserted
+    """
+    total_start_time = time.time()
+    total_rows = 0
+    qualified_table = f"{schema}.{table}"
+
+    data_iter = iter(data)
+    try:
+        batch = []
+        for _ in range(min(batch_size, 1000)):
+            try:
+                batch.append(next(data_iter))
+            except StopIteration:
+                break
+
+        if not batch:
+            return 0
+
+        columns = list(batch[0].keys())
+
+    except StopIteration:
+        return 0
+
+    with connection.cursor() as cursor:
+        cursor.execute("BEGIN")
+        try:
+            batch_df = pd.DataFrame(batch)
+            buffer = StringIO()
+            batch_df[columns].to_csv(buffer, index=False, header=False,
+                                     sep='\t', na_rep='\\N', quoting=None)
+            buffer.seek(0)
+
+            batch_start_time = time.time()
+            cursor.copy_from(
+                file=buffer,
+                table=qualified_table,
+                columns=columns,
+                null='\\N'
+            )
+
+            batch_size_actual = len(batch)
+            total_rows += batch_size_actual
+            batch_time = time.time() - batch_start_time
+
+            logger.info(
+                f"Inserted {batch_size_actual} rows into {table} in {batch_time:.2f} seconds "
+                f"({batch_size_actual / batch_time:.1f} rows/sec)"
+            )
+
+            while True:
+                batch = []
+                for _ in range(batch_size):
+                    try:
+                        batch.append(next(data_iter))
+                    except StopIteration:
+                        break
+
+                if not batch:
+                    break
+
+                batch_start_time = time.time()
+                batch_df = pd.DataFrame(batch)
+
+                buffer = StringIO()
+                batch_df[columns].to_csv(buffer, index=False, header=False,
+                                         sep='\t', na_rep='\\N', quoting=None)
+                buffer.seek(0)
+
+                cursor.copy_from(
+                    file=buffer,
+                    table=qualified_table,
+                    columns=columns,
+                    null='\\N'
+                )
+
+                batch_size_actual = len(batch)
+                total_rows += batch_size_actual
+                batch_time = time.time() - batch_start_time
+
+                logger.info(
+                    f"Inserted {batch_size_actual} rows into {table} in {batch_time:.2f} seconds "
+                    f"({batch_size_actual / batch_time:.1f} rows/sec)"
+                )
+
+            cursor.execute("COMMIT")
+
+        except Exception as e:
+            cursor.execute("ROLLBACK")
+            logger.error(f"Error during bulk insert with COPY: {str(e)}")
+            raise
+
+    total_time = time.time() - total_start_time
+    logger.info(
+        f"Bulk insert complete: {total_rows} rows inserted into {table} in {total_time:.2f} seconds "
+        f"({total_rows / total_time:.1f} rows/sec)"
+    )
+
+    return total_rows
 
 
 def get_season(release_date: datetime.date) -> models.Season:

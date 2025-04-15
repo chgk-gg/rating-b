@@ -186,7 +186,7 @@ def save_player_rating_by_tournament(release_id: int, player_rating: PlayerRatin
         if player["rating"] != 0
         for rating_by_trnmt in player["top_bonuses"]
     )
-    db_tools.fast_insert("player_rating_by_tournament", bonuses)
+    db_tools.bulk_insert_copy("player_rating_by_tournament", bonuses)
 
 
 def save_tournaments_in_release(
