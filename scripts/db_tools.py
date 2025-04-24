@@ -1,5 +1,5 @@
 import datetime
-from typing import Dict, List
+from typing import Dict, List, Iterable
 from django.db.models import F, Q
 from django.db import connection
 import logging
@@ -10,25 +10,42 @@ from .constants import SCHEMA_NAME
 logger = logging.getLogger(__name__)
 
 
-def fast_insert(table: str, data: List[Dict], batch_size: int = 5000):
+def fast_insert(table: str, data: Iterable[dict], batch_size: int = 5000):
     """
-    Inserts data from all dicts in a list. Keys in the first dict will be used as columns.
+    Inserts data from all dicts in an iterable.
     :param table: table to be updated
-    :param data: list of uniform dicts
-    :param batch_size: number of rows to be inserted in a single query
+    :param data: iterable of uniform dicts
+    :param batch_size: max number of rows to be inserted in a single query
     :return:
     """
-    if not data:
+    data_iter = iter(data)
+
+    try:
+        first_item = next(data_iter)
+    except StopIteration:
         return
-    logger.debug(f"Inserting {len(data)} rows into {table}")
-    columns = data[0].keys()
+
+    columns = first_item.keys()
     columns_joined = ", ".join(columns)
 
     with connection.cursor() as cursor:
-        for i in range(0, len(data), batch_size):
+        batch = [first_item]
+        for row in data_iter:
+            batch.append(row)
+            if len(batch) >= batch_size:
+                values = ",\n".join(
+                    f'({",".join(str(row[column]) for column in columns)})'
+                    for row in batch
+                )
+                cursor.execute(
+                    f"INSERT INTO {SCHEMA_NAME}.{table} ({columns_joined}) VALUES {values}"
+                )
+                batch = []
+
+        # Process remaining rows in the final batch
+        if batch:
             values = ",\n".join(
-                f'({",".join(str(row[column]) for column in columns)})'
-                for row in data[i : i + batch_size]
+                f'({",".join(str(row[column]) for column in columns)})' for row in batch
             )
             cursor.execute(
                 f"INSERT INTO {SCHEMA_NAME}.{table} ({columns_joined}) VALUES {values}"

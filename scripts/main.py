@@ -56,20 +56,23 @@ def make_step_for_teams_and_players(
         tournament.calc_bonuses(initial_teams)
         new_player_ids |= tournament.get_new_player_ids(existing_player_ids)
 
+    logger.info(f"Calculated tournament ratings")
     final_teams = copy.deepcopy(initial_teams)
     final_players = copy.deepcopy(initial_players)
     if new_player_ids:
         new_players = (
             pd.DataFrame(
-                [
+                (
                     {"player_id": player_id, "rating": 0, "top_bonuses": []}
                     for player_id in new_player_ids
-                ]
+                )
             )
             .set_index("player_id")
             .join(db_tools.get_base_teams_for_players(new_release.date), how="left")
         )
         final_players.data = pd.concat([final_players.data, new_players])
+
+    logger.info("Added new players")
 
     # We need these columns to dump the difference between new and old rating.
     final_teams.data["prev_rating"] = final_teams.data["rating"]
@@ -81,9 +84,11 @@ def make_step_for_teams_and_players(
             final_teams, final_players = tournament.apply_bonuses(
                 final_teams, final_players
             )
+    logger.info("Applied bonuses")
     # Team rating cannot be negative.
     final_teams.data["rating"] = np.maximum(final_teams.data["rating"], 0)
     final_players.recalc_rating()
+    logger.info("Recalculated players rating")
     return final_teams, final_players
 
 
@@ -94,11 +99,17 @@ def dump_release(
     player_rating: PlayerRating,
     tournaments: Iterable[trnmt.Tournament],
 ):
+    logger.info(f"Saving release {release.id}")
     delete_previous_results(release.id)
+    logger.info("Deleted previous results")
     save_player_rating(release.id, player_rating)
+    logger.info("Saved player ratings")
     save_team_ratings(release.id, teams)
+    logger.info("Saved team ratings")
     save_player_rating_by_tournament(release.id, player_rating)
+    logger.info("Saved player ratings by tournament")
     save_tournaments_in_release(release.id, tournaments)
+    logger.info("Saved tournaments in release")
 
 
 def delete_previous_results(release_id):
@@ -118,7 +129,7 @@ def delete_previous_results(release_id):
 
 
 def save_player_rating(release_id: int, player_rating: PlayerRating):
-    player_ratings = [
+    player_ratings = (
         {
             "release_id": release_id,
             "player_id": player_id,
@@ -128,15 +139,16 @@ def save_player_rating(release_id: int, player_rating: PlayerRating):
                 if player["prev_rating"]
                 else "NULL"
             ),
+            "place": player["place"],
         }
         for player_id, player in player_rating.data.iterrows()
         if player["rating"] > 0
-    ]
+    )
     db_tools.fast_insert("player_rating", player_ratings)
 
 
 def save_team_ratings(release_id: int, teams: pd.DataFrame):
-    team_ratings = [
+    team_ratings = (
         {
             "release_id": release_id,
             "team_id": team_id,
@@ -155,12 +167,12 @@ def save_team_ratings(release_id: int, teams: pd.DataFrame):
             ),
         }
         for team_id, team in teams.iterrows()
-    ]
+    )
     db_tools.fast_insert("team_rating", team_ratings)
 
 
 def save_player_rating_by_tournament(release_id: int, player_rating: PlayerRating):
-    bonuses = [
+    bonuses = (
         {
             "release_id": release_id,
             "player_id": player_id,
@@ -173,18 +185,18 @@ def save_player_rating_by_tournament(release_id: int, player_rating: PlayerRatin
         for player_id, player in player_rating.data.iterrows()
         if player["rating"] != 0
         for rating_by_trnmt in player["top_bonuses"]
-    ]
+    )
     db_tools.fast_insert("player_rating_by_tournament", bonuses)
 
 
 def save_tournaments_in_release(
     release_id: int, tournaments: Iterable[trnmt.Tournament]
 ):
-    tournaments_in_release = [
+    tournaments_in_release = (
         {"release_id": release_id, "tournament_id": tournament.id}
         for tournament in tournaments
         if tournament.is_in_maii_rating
-    ]
+    )
     db_tools.fast_insert("tournament_in_release", tournaments_in_release)
 
 
@@ -310,14 +322,17 @@ def calc_release(next_release_date: datetime.date):
     dump_rating_for_next_release(old_release, teams_with_updated_rating)
 
     tournaments = get_tournaments_for_release(old_release, next_release)
+    logger.info(f"Fetched {len(tournaments)} tournaments")
     new_teams, new_players = make_step_for_teams_and_players(
         initial_teams, initial_players, tournaments, new_release=next_release
     )
+    logger.info("Made a step for teams and players")
     new_teams.data["place"] = tools.calc_places(new_teams.data["rating"].values)
 
     with transaction.atomic():
         for tournament in tournaments:
             dump_team_bonuses_for_tournament(tournament)
+        logger.info("Saved tournament bonuses")
         dump_release(
             next_release,
             teams_to_dump(next_release_date, new_teams),

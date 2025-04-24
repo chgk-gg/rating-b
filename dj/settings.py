@@ -79,7 +79,11 @@ DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
         "OPTIONS": {
-            "options": "-c search_path=b,public -c statement_timeout=60s -c lock_timeout=10s"
+            "options": "-c search_path=b,public "
+            "-c statement_timeout=120s "
+            "-c idle_in_transaction_session_timeout=60s "
+            "-c lock_timeout=10s "
+            "-c application_name=django_rating_app",
         },
         "NAME": os.environ["DJANGO_POSTGRES_DB_NAME"],
         "USER": os.environ["DJANGO_POSTGRES_DB_USER"],
@@ -138,9 +142,16 @@ DEBUG = False
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    "formatters": {
+        "timestamped": {
+            "format": "%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+            "datefmt": "%Y-%m-%d %H:%M:%S",
+        },
+    },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
+            "formatter": "timestamped",
         },
     },
     "root": {
