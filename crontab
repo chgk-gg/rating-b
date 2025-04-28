@@ -3,4 +3,4 @@
 
 # Calculate ratings for the past 5 weeks as soon as results are open
 # See also https://github.com/maii-chgk/rating-importer/commit/f5a70e2dde797d132538d995f11b034670cdaf23
-2 21 * * * /app/.venv/bin/python /app/manage.py calc_all_releases --first_to_calc $(date -d "-5 weeks + $(( ( (3 - $(date  +%u)) % 7) + 1 )) days" +"%Y-%m-%d");; curl https://rating.chgk.gg/recreate_views/b; curl https://rating.chgk.gg/reset_cache; curl https://rating.chgk.gg/recalculate_truedl/b
+2 21 * * * /app/.venv/bin/python /app/manage.py calc_all_releases --first_to_calc $(date -d "-5 weeks + $(( ( (3 - $(date  +%u)) % 7) + 1 )) days" +"%Y-%m-%d") ; curl https://rating.chgk.gg/recreate_views/b ; curl https://rating.chgk.gg/reset_cache ; curl https://rating.chgk.gg/recalculate_truedl/b
