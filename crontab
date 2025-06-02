@@ -1,6 +1,8 @@
-# Recalculate all ratings, starting with the first release in September 2021
-#30 0 * * * /app/.venv/bin/python /app/manage.py calc_all_releases --first_to_calc 2021-09-09; curl https://rating.chgk.gg/reset_cache; curl https://rating.chgk.gg/recalculate_truedl/b
+30 1 * * MON /app/cron_scripts/2021.sh
+30 1 * * TUE /app/cron_scripts/2022.sh
+30 1 * * WED /app/cron_scripts/2023.sh
+30 1 * * THU /app/cron_scripts/2024.sh
+30 14 * * SUN /app/cron_scripts/2025.sh
 
-# Calculate ratings for the past 5 weeks as soon as results are open
-# See also https://github.com/maii-chgk/rating-importer/commit/f5a70e2dde797d132538d995f11b034670cdaf23
-2 21 * * * /app/.venv/bin/python /app/manage.py calc_all_releases --first_to_calc $(date -d "-5 weeks + $(( ( (3 - $(date  +%u)) % 7) + 1 )) days" +"%Y-%m-%d") ; curl https://rating.chgk.gg/recreate_views/b ; curl https://rating.chgk.gg/reset_cache ; curl https://rating.chgk.gg/recalculate_truedl/b
+# Calculate ratings for the past several weeks as soon as results are open
+5 21 * * * /app/cron_scripts/recent.sh

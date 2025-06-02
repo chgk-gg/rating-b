@@ -80,7 +80,7 @@ DATABASES = {
         "ENGINE": "django.db.backends.postgresql",
         "OPTIONS": {
             "options": "-c search_path=b,public "
-            "-c statement_timeout=120s "
+            "-c statement_timeout=300s "
             "-c idle_in_transaction_session_timeout=60s "
             "-c lock_timeout=10s "
             "-c application_name=django_rating_app",
