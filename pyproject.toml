@@ -19,7 +19,7 @@ python-dateutil = "2.9.0.post0"
 pytz = "2025.2"
 six = "1.16.0"
 sqlparse = "0.5.1"
-python-dotenv = "1.0.1"
+python-dotenv = "1.1.0"
 mmh3 = "5.1.0"
 numpy = "2.1.3"
 
