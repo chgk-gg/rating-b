@@ -326,6 +326,7 @@ def calc_release(next_release_date: datetime.date):
     updated_teams, updated_players = make_step_for_teams_and_players(
         initial_teams, initial_players, tournaments, new_release=next_release
     )
+    updated_players.reset_rating_for_dead_players(old_release_date)
     logger.info("Made a step for teams and players")
     updated_teams.data["place"] = tools.calc_places(updated_teams.data["rating"].values)
 
