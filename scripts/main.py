@@ -323,11 +323,11 @@ def calc_release(next_release_date: datetime.date):
 
     tournaments = get_tournaments_for_release(old_release, next_release)
     logger.info(f"Fetched {len(tournaments)} tournaments")
-    new_teams, new_players = make_step_for_teams_and_players(
+    updated_teams, updated_players = make_step_for_teams_and_players(
         initial_teams, initial_players, tournaments, new_release=next_release
     )
     logger.info("Made a step for teams and players")
-    new_teams.data["place"] = tools.calc_places(new_teams.data["rating"].values)
+    updated_teams.data["place"] = tools.calc_places(updated_teams.data["rating"].values)
 
     with transaction.atomic():
         for tournament in tournaments:
@@ -335,17 +335,17 @@ def calc_release(next_release_date: datetime.date):
         logger.info("Saved tournament bonuses")
         dump_release(
             next_release,
-            teams_to_dump(next_release_date, new_teams),
-            new_players,
+            teams_to_dump(next_release_date, updated_teams),
+            updated_players,
             tournaments,
         )
 
-    release_hash = calculate_hash(new_players, new_teams, tournaments)
+    release_hash = calculate_hash(updated_players, updated_teams, tournaments)
     if release_hash != next_release.hash:
         logger.info("hashes are different, updating release")
         next_release.updated_at = timezone.now()
         next_release.hash = release_hash
-        next_release.q = new_teams.q
+        next_release.q = updated_teams.q
         next_release.save()
 
 
