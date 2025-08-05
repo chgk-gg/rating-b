@@ -60,8 +60,8 @@ def get_base_teams_for_players(release_date: datetime.date) -> pd.Series:
     season = get_season(release_date)
     base_teams = (
         season.season_roster_set.filter(
-            Q(start_date=None) | Q(start_date__lte=release_date),
-            Q(end_date=None) | Q(end_date__lte=release_date),
+            Q(start_date__lte=release_date),
+            Q(end_date=None) | Q(end_date__gt=release_date),
         )
         .annotate(base_team_id=F("team_id"))
         .values("player_id", "base_team_id", "start_date")

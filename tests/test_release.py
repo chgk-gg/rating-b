@@ -33,9 +33,9 @@ class TestReleases(unittest.TestCase):
             "place"
         )[0]
         self.assertEqual(45556, team_at_first_place.team_id)
-        self.assertEqual(10737, team_at_first_place.rating)
-        self.assertEqual(63, team_at_first_place.rating_change)
-        self.assertEqual(9394, team_at_first_place.trb)
+        self.assertEqual(10734, team_at_first_place.rating)
+        self.assertEqual(60, team_at_first_place.rating_change)
+        self.assertEqual(9367, team_at_first_place.trb)
         self.assertEqual(1, team_at_first_place.place)
         self.assertEqual(0, team_at_first_place.place_change)
 
@@ -45,18 +45,18 @@ class TestReleases(unittest.TestCase):
         self.assertEqual(65268, team_at_place_57.team_id)
         self.assertEqual(7652, team_at_place_57.rating)
         self.assertEqual(-83, team_at_place_57.rating_change)
-        self.assertEqual(7962, team_at_place_57.trb)
+        self.assertEqual(7938, team_at_place_57.trb)
         self.assertEqual(8, team_at_place_57.place_change)
         self.assertEqual(57, team_at_place_57.place)
 
         team_at_place_400 = Team_rating.objects.filter(release=self.release).order_by(
             "place"
         )[399]
-        self.assertEqual(46627, team_at_place_400.team_id)
-        self.assertEqual(5288, team_at_place_400.rating)
+        self.assertEqual(69235, team_at_place_400.team_id)
+        self.assertEqual(5293, team_at_place_400.rating)
         self.assertEqual(0, team_at_place_400.rating_change)
         self.assertEqual(0, team_at_place_400.trb)
-        self.assertEqual(0, team_at_place_400.place_change)
+        self.assertEqual(1, team_at_place_400.place_change)
         self.assertEqual(400, team_at_place_400.place)
 
     def test_tournaments_in_release_values(self):
@@ -70,9 +70,9 @@ class TestReleases(unittest.TestCase):
 
     def test_player_rating_values(self):
         player_rating = Player_rating.objects.get(release=self.release, player_id=77673)
-        self.assertEqual(12434, player_rating.rating)
-        self.assertEqual(33, player_rating.rating_change)
-        self.assertEqual(121, player_rating.place)
+        self.assertEqual(12433, player_rating.rating)
+        self.assertEqual(32, player_rating.rating_change)
+        self.assertEqual(120, player_rating.place)
 
     def test_missing_player_rating_values(self):
         self.assertEqual(
@@ -88,8 +88,8 @@ class TestReleases(unittest.TestCase):
         )
         self.assertEqual(7, player_top_bonuses.count())
 
-        self.assertEqual(1794, player_top_bonuses.get(tournament_id=7225).cur_score)
-        self.assertEqual(1794, player_top_bonuses.get(tournament_id=7225).initial_score)
+        self.assertEqual(1793, player_top_bonuses.get(tournament_id=7225).cur_score)
+        self.assertEqual(1793, player_top_bonuses.get(tournament_id=7225).initial_score)
         self.assertEqual(
             0, player_top_bonuses.get(tournament_id=7225).weeks_since_tournament
         )
@@ -108,13 +108,13 @@ class TestReleases(unittest.TestCase):
         self.assertEqual(1, first_place.m)
         self.assertEqual(1, first_place.mp)
         self.assertEqual(49804, first_place.team_id)
-        self.assertEqual(2079, first_place.rating)
-        self.assertEqual(80, first_place.rating_change)
-        self.assertEqual(2079, first_place.bp)
+        self.assertEqual(2075, first_place.rating)
+        self.assertEqual(79, first_place.rating_change)
+        self.assertEqual(2075, first_place.bp)
         self.assertEqual(0, first_place.d1)
-        self.assertEqual(160, first_place.d2)
-        self.assertEqual(9568, first_place.rg)
-        self.assertEqual(9568, first_place.rt)
+        self.assertEqual(158, first_place.d2)
+        self.assertEqual(9540, first_place.rg)
+        self.assertEqual(9540, first_place.rt)
         self.assertEqual(0, first_place.r)
         self.assertEqual(False, first_place.is_in_maii_rating)
 
@@ -122,12 +122,12 @@ class TestReleases(unittest.TestCase):
         place_20 = tournament_results.get(team_id=43417)
         self.assertEqual(19.5, place_20.m)
         self.assertEqual(11, place_20.mp)
-        self.assertEqual(1380, place_20.rating)
-        self.assertEqual(-27, place_20.rating_change)
-        self.assertEqual(1532, place_20.bp)
-        self.assertEqual(-76, place_20.d1)
+        self.assertEqual(1379, place_20.rating)
+        self.assertEqual(-25, place_20.rating_change)
+        self.assertEqual(1521, place_20.bp)
+        self.assertEqual(-71, place_20.d1)
         self.assertEqual(22, place_20.d2)
-        self.assertEqual(6821, place_20.rg)
-        self.assertEqual(7127, place_20.rt)
+        self.assertEqual(6748, place_20.rg)
+        self.assertEqual(7106, place_20.rt)
         self.assertEqual(6954, place_20.r)
         self.assertEqual(True, place_20.is_in_maii_rating)
