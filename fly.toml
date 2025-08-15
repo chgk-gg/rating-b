@@ -9,7 +9,7 @@ kill_signal = "SIGINT"
 kill_timeout = "5s"
 
 [deploy]
-  release_command = "/app/manage.py migrate"
+  release_command = "uv run /app/manage.py migrate"
 
 [env]
   PORT = "8000"
