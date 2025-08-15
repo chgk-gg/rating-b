@@ -29,7 +29,7 @@ jobs:
         env:
           PGPASSWORD: postgres
       - name: Install uv
-        uses: astral-sh/setup-uv@v4
+        uses: astral-sh/setup-uv@v6
         with:
           version: "latest"
       - name: Set up Python
