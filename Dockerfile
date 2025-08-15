@@ -1,12 +1,12 @@
-ARG PYTHON_VERSION=3.12-slim-bookworm
-
-FROM python:${PYTHON_VERSION}
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1
+ENV UV_COMPILE_BYTECODE=1
+ENV UV_LINK_MODE=copy
+ENV UV_TOOL_BIN_DIR=/usr/local/bin
 ENV PYTHONUNBUFFERED=1
 
 RUN mkdir -p /app
-
 WORKDIR /app
 
 RUN apt-get update && \
@@ -15,17 +15,18 @@ RUN apt-get update && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN curl -sSL https://install.python-poetry.org | python3 -
+COPY pyproject.toml uv.lock /app/
 
-ENV PATH="${PATH}:/root/.local/bin"
+RUN --mount=type=cache,target=/root/.cache/uv \
+    --mount=type=bind,source=uv.lock,target=uv.lock \
+    --mount=type=bind,source=pyproject.toml,target=pyproject.toml \
+    uv sync --locked --no-install-project --no-dev
 
-COPY pyproject.toml poetry.lock /app/
+COPY . /app
+RUN --mount=type=cache,target=/root/.cache/uv \
+    uv sync --locked --no-dev
 
-RUN poetry config virtualenvs.in-project true && \
-    poetry install --no-interaction --no-ansi && \
-    poetry cache clear --all -n pypi
-
-COPY . /app/
+ENV PATH="/app/.venv/bin:$PATH"
 
 ENV SUPERCRONIC_URL=https://github.com/aptible/supercronic/releases/download/v0.2.30/supercronic-linux-amd64 \
     SUPERCRONIC=supercronic-linux-amd64 \
