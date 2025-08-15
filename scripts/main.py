@@ -48,25 +48,19 @@ def make_step_for_teams_and_players(
     new_player_ids = set()
     for tournament in tournaments:
         logger.debug(
-            f"Tournament {tournament.id}..."
-            + ("" if tournament.is_in_maii_rating else " (not in MAII rating)")
+            f"Tournament {tournament.id}..." + ("" if tournament.is_in_maii_rating else " (not in MAII rating)")
         )
         initial_teams.add_new_teams(tournament, initial_players)
         tournament.add_ratings(initial_teams, initial_players)
         tournament.calc_bonuses(initial_teams)
         new_player_ids |= tournament.get_new_player_ids(existing_player_ids)
 
-    logger.info(f"Calculated tournament ratings")
+    logger.info("Calculated tournament ratings")
     final_teams = copy.deepcopy(initial_teams)
     final_players = copy.deepcopy(initial_players)
     if new_player_ids:
         new_players = (
-            pd.DataFrame(
-                (
-                    {"player_id": player_id, "rating": 0, "top_bonuses": []}
-                    for player_id in new_player_ids
-                )
-            )
+            pd.DataFrame(({"player_id": player_id, "rating": 0, "top_bonuses": []} for player_id in new_player_ids))
             .set_index("player_id")
             .join(db_tools.get_base_teams_for_players(new_release.date), how="left")
         )
@@ -81,9 +75,7 @@ def make_step_for_teams_and_players(
     final_players.reduce_rating()
     for tournament in tournaments:
         if tournament.is_in_maii_rating:
-            final_teams, final_players = tournament.apply_bonuses(
-                final_teams, final_players
-            )
+            final_teams, final_players = tournament.apply_bonuses(final_teams, final_players)
     logger.info("Applied bonuses")
     # Team rating cannot be negative.
     final_teams.data["rating"] = np.maximum(final_teams.data["rating"], 0)
@@ -114,18 +106,10 @@ def dump_release(
 
 def delete_previous_results(release_id):
     with connection.cursor() as cursor:
-        cursor.execute(
-            f"delete from {SCHEMA_NAME}.player_rating where release_id = {release_id}"
-        )
-        cursor.execute(
-            f"delete from {SCHEMA_NAME}.team_rating where release_id = {release_id}"
-        )
-        cursor.execute(
-            f"delete from {SCHEMA_NAME}.player_rating_by_tournament where release_id = {release_id}"
-        )
-        cursor.execute(
-            f"delete from {SCHEMA_NAME}.tournament_in_release where release_id = {release_id}"
-        )
+        cursor.execute(f"delete from {SCHEMA_NAME}.player_rating where release_id = {release_id}")
+        cursor.execute(f"delete from {SCHEMA_NAME}.team_rating where release_id = {release_id}")
+        cursor.execute(f"delete from {SCHEMA_NAME}.player_rating_by_tournament where release_id = {release_id}")
+        cursor.execute(f"delete from {SCHEMA_NAME}.tournament_in_release where release_id = {release_id}")
 
 
 def save_player_rating(release_id: int, player_rating: PlayerRating):
@@ -134,11 +118,7 @@ def save_player_rating(release_id: int, player_rating: PlayerRating):
             "release_id": release_id,
             "player_id": player_id,
             "rating": player["rating"],
-            "rating_change": (
-                (player["rating"] - player["prev_rating"])
-                if player["prev_rating"]
-                else "NULL"
-            ),
+            "rating_change": ((player["rating"] - player["prev_rating"]) if player["prev_rating"] else "NULL"),
             "place": player["place"],
         }
         for player_id, player in player_rating.data.iterrows()
@@ -154,17 +134,9 @@ def save_team_ratings(release_id: int, teams: pd.DataFrame):
             "team_id": team_id,
             "rating": team["rating"],
             "trb": team["trb"],
-            "rating_change": (
-                (team["rating"] - team["prev_rating"])
-                if team["prev_rating"]
-                else "NULL"
-            ),
+            "rating_change": ((team["rating"] - team["prev_rating"]) if team["prev_rating"] else "NULL"),
             "place": team["place"] or "NULL",
-            "place_change": (
-                (decimal.Decimal(team["place"]) - team["prev_place"])
-                if team["prev_place"]
-                else "NULL"
-            ),
+            "place_change": ((decimal.Decimal(team["place"]) - team["prev_place"]) if team["prev_place"] else "NULL"),
         }
         for team_id, team in teams.iterrows()
     )
@@ -189,9 +161,7 @@ def save_player_rating_by_tournament(release_id: int, player_rating: PlayerRatin
     db_tools.fast_insert("player_rating_by_tournament", bonuses)
 
 
-def save_tournaments_in_release(
-    release_id: int, tournaments: Iterable[trnmt.Tournament]
-):
+def save_tournaments_in_release(release_id: int, tournaments: Iterable[trnmt.Tournament]):
     tournaments_in_release = (
         {"release_id": release_id, "tournament_id": tournament.id}
         for tournament in tournaments
@@ -203,9 +173,7 @@ def save_tournaments_in_release(
 # Saves tournament bonuses that were already calculated.
 def dump_team_bonuses_for_tournament(trnmt: trnmt.Tournament):
     with connection.cursor() as cursor:
-        cursor.execute(
-            f"delete from {SCHEMA_NAME}.tournament_result where tournament_id = {trnmt.id}"
-        )
+        cursor.execute(f"delete from {SCHEMA_NAME}.tournament_result where tournament_id = {trnmt.id}")
 
     tournament_results = [
         {
@@ -229,13 +197,9 @@ def dump_team_bonuses_for_tournament(trnmt: trnmt.Tournament):
     db_tools.fast_insert("tournament_result", tournament_results)
 
 
-def dump_rating_for_next_release(
-    old_release: models.Release, teams_with_updated_rating: List[Tuple[int, int]]
-):
+def dump_rating_for_next_release(old_release: models.Release, teams_with_updated_rating: List[Tuple[int, int]]):
     for team_id, new_rating in teams_with_updated_rating:
-        n_changed = old_release.team_rating_set.filter(team_id=team_id).update(
-            rating_for_next_release=new_rating
-        )
+        n_changed = old_release.team_rating_set.filter(team_id=team_id).update(rating_for_next_release=new_rating)
         if n_changed != 1:
             logger.warning(
                 "dump_rating_for_next_release: there is problem with updating team_rating.rating_for_next_release for "
@@ -244,9 +208,7 @@ def dump_rating_for_next_release(
 
 
 # Loads tournaments from our DB that finish between given releases.
-def get_tournaments_for_release(
-    old_release: models.Release, new_release: models.Release
-) -> List[trnmt.Tournament]:
+def get_tournaments_for_release(old_release: models.Release, new_release: models.Release) -> List[trnmt.Tournament]:
     tournaments = []
     n_counted_in_maii_rating = 0
     tournaments_qs = models.Tournament.objects.filter(
@@ -258,9 +220,7 @@ def get_tournaments_for_release(
     for trnmt_from_db in tournaments_qs.order_by("pk"):
         # We need only tournaments with available results of at lease some teams.
         try:
-            tournament = trnmt.Tournament(
-                trnmt_from_db=trnmt_from_db, release=new_release
-            )
+            tournament = trnmt.Tournament(trnmt_from_db=trnmt_from_db, release=new_release)
             tournaments.append(tournament)
             if trnmt_from_db.maii_rating:
                 n_counted_in_maii_rating += 1
@@ -279,20 +239,14 @@ def get_tournaments_for_release(
 # or that had it in previous season and new season started <=3 months ago.
 def teams_to_dump(release_date: datetime.date, teams: TeamRating) -> pd.DataFrame:
     cur_season = db_tools.get_season(release_date)
-    teams_with_rosters = set(
-        cur_season.season_roster_set.values_list("team_id", flat=True).distinct()
-    )
+    teams_with_rosters = set(cur_season.season_roster_set.values_list("team_id", flat=True).distinct())
     if cur_season.start + datetime.timedelta(days=90) >= release_date:
         prev_season = db_tools.get_season(release_date - datetime.timedelta(days=180))
-        teams_with_rosters |= set(
-            prev_season.season_roster_set.values_list("team_id", flat=True).distinct()
-        )
-    res = teams.data[teams.data.index.isin(teams_with_rosters)]
+        teams_with_rosters |= set(prev_season.season_roster_set.values_list("team_id", flat=True).distinct())
+    teams.data[teams.data.index.isin(teams_with_rosters)]
     n_skipped_teams = len(teams.data[~teams.data.index.isin(teams_with_rosters)])
     if n_skipped_teams:
-        logger.debug(
-            f"We exclude from the rating {n_skipped_teams} teams that have no roster for current season."
-        )
+        logger.debug(f"We exclude from the rating {n_skipped_teams} teams that have no roster for current season.")
     return teams.data[teams.data.index.isin(teams_with_rosters)]
 
 
@@ -313,12 +267,8 @@ def calc_release(next_release_date: datetime.date):
         sys.exit("Q is nan! We cannot continue.")
     initial_teams.calc_trb(initial_players)
 
-    changed_teams = db_tools.get_teams_with_new_players(
-        old_release_date, next_release_date
-    )
-    teams_with_updated_rating = initial_teams.update_ratings_for_changed_teams(
-        changed_teams
-    )
+    changed_teams = db_tools.get_teams_with_new_players(old_release_date, next_release_date)
+    teams_with_updated_rating = initial_teams.update_ratings_for_changed_teams(changed_teams)
     dump_rating_for_next_release(old_release, teams_with_updated_rating)
 
     tournaments = get_tournaments_for_release(old_release, next_release)
@@ -350,9 +300,7 @@ def calc_release(next_release_date: datetime.date):
 
 
 # Calculates all releases starting from FIRST_NEW_RELEASE until current date
-def calc_all_releases(
-    first_to_calc: datetime.date, last_to_calc: datetime.date = datetime.date.today()
-):
+def calc_all_releases(first_to_calc: datetime.date, last_to_calc: datetime.date = datetime.date.today()):
     next_release_date = first_to_calc
     time_started = datetime.datetime.now()
     n_releases_calculated = 0
@@ -363,6 +311,4 @@ def calc_all_releases(
         next_release_date += datetime.timedelta(days=7)
     time_spent = datetime.datetime.now() - time_started
     logger.info(f"Done! Releases calculated: {n_releases_calculated}")
-    logger.info(
-        f"Total time spent: {time_spent}, time per release: {time_spent / n_releases_calculated}"
-    )
+    logger.info(f"Total time spent: {time_spent}, time per release: {time_spent / n_releases_calculated}")

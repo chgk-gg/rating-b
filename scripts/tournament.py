@@ -31,9 +31,7 @@ class Tournament:
         self.id = trnmt_from_db.id
         self.release_id = release.id
         self.is_in_maii_rating = trnmt_from_db.maii_rating
-        self.continuity_rule = roster_continuity.select_rule(
-            trnmt_from_db.start_datetime.date()
-        )
+        self.continuity_rule = roster_continuity.select_rule(trnmt_from_db.start_datetime.date())
 
         teams = {}
         logger.debug(f"Loading tournament {self.id}...")
@@ -56,9 +54,9 @@ class Tournament:
                 "baseTeamMembers": [],
             }
         if len(teams) == 0:
-            raise EmptyTournamentException(f"There are no teams.")
+            raise EmptyTournamentException("There are no teams.")
         if any(team["position"] > len(teams) for team in teams.values()):
-            raise EmptyTournamentException(f"There are teams with impossible positions")
+            raise EmptyTournamentException("There are teams with impossible positions")
 
         for team_player in trnmt_from_db.roster_set.all():
             if team_player.team_id not in teams:
@@ -69,17 +67,11 @@ class Tournament:
             teams[team_player.team_id]["teamMembers"].append(team_player.player_id)
             if team_player.flag == "Б":
                 teams[team_player.team_id]["n_base"] += 1
-                teams[team_player.team_id]["baseTeamMembers"].append(
-                    team_player.player_id
-                )
+                teams[team_player.team_id]["baseTeamMembers"].append(team_player.player_id)
             else:
                 teams[team_player.team_id]["n_legs"] += 1
 
-        teams_without_players = [
-            team_id
-            for team_id, team_data in teams.items()
-            if len(team_data["teamMembers"]) == 0
-        ]
+        teams_without_players = [team_id for team_id, team_data in teams.items() if len(team_data["teamMembers"]) == 0]
         if teams_without_players:
             if len(teams_without_players) == len(teams):
                 raise EmptyTournamentException("All teams have no players")
@@ -93,23 +85,13 @@ class Tournament:
         )
 
     def add_ratings(self, team_rating, player_rating):
-        self.data["rt"] = self.data.teamMembers.map(
-            lambda x: player_rating.calc_rt(x, team_rating.q)
-        )
-        self.data["r"] = np.where(
-            self.data.heredity, self.data.team_id.map(team_rating.get_team_rating), 0
-        )
-        self.data["rb"] = np.where(
-            self.data.heredity, self.data.team_id.map(team_rating.get_trb), 0
-        )
-        self.data["rg"] = np.where(
-            self.data.rb, self.data.r * self.data.rt / self.data.rb, self.data.rt
-        )
+        self.data["rt"] = self.data.teamMembers.map(lambda x: player_rating.calc_rt(x, team_rating.q))
+        self.data["r"] = np.where(self.data.heredity, self.data.team_id.map(team_rating.get_team_rating), 0)
+        self.data["rb"] = np.where(self.data.heredity, self.data.team_id.map(team_rating.get_trb), 0)
+        self.data["rg"] = np.where(self.data.rb, self.data.r * self.data.rt / self.data.rb, self.data.rt)
         self.data["rg"] = np.where(
             self.data.rt < self.data.rb,
-            np.maximum(
-                self.data.rg, MIN_TOURNAMENT_TO_RELEASE_RATING_RATIO * self.data.r
-            ),
+            np.maximum(self.data.rg, MIN_TOURNAMENT_TO_RELEASE_RATING_RATIO * self.data.r),
             np.minimum(self.data.rg, np.maximum(self.data.r, self.data.rt)),
         )
         self.data["expected_place"] = tools.calc_places(self.data["rg"].values)
@@ -138,30 +120,16 @@ class Tournament:
 
     def calc_bonuses(self, team_rating):
         self.data.sort_values(by="rg", ascending=False, inplace=True)
-        self.data["score_pred"] = self.calculate_bonus_predictions(
-            self.data.rg.values, c=team_rating.c
-        )
-        self.data["score_real"] = tools.calc_score_real(
-            self.data.score_pred.values, self.data.position.values
-        )
+        self.data["score_pred"] = self.calculate_bonus_predictions(self.data.rg.values, c=team_rating.c)
+        self.data["score_real"] = tools.calc_score_real(self.data.score_pred.values, self.data.position.values)
         self.data["D1"] = self.calc_d1()
-        self.data["D2"] = D2_MULTIPLIER * np.exp(
-            (self.data.score_real - MAX_BONUS) / D2_EXPONENT_DENOMINATOR
-        )
-        self.data["bonus_raw"] = (
-            self.coeff * (self.data["D1"] + self.data["D2"])
-        ).astype("float64")
+        self.data["D2"] = D2_MULTIPLIER * np.exp((self.data.score_real - MAX_BONUS) / D2_EXPONENT_DENOMINATOR)
+        self.data["bonus_raw"] = (self.coeff * (self.data["D1"] + self.data["D2"])).astype("float64")
         self.data["bonus"] = self.data.bonus_raw
         self.data.loc[
             self.data.heredity & (self.data.n_legs >= MIN_LEGIONNAIRES_TO_REDUCE_BONUS),
             "bonus",
-        ] *= (
-            2
-            / self.data[
-                self.data.heredity
-                & (self.data.n_legs >= MIN_LEGIONNAIRES_TO_REDUCE_BONUS)
-            ]["n_legs"]
-        )
+        ] *= 2 / self.data[self.data.heredity & (self.data.n_legs >= MIN_LEGIONNAIRES_TO_REDUCE_BONUS)]["n_legs"]
         self.data.sort_values(by=["position", "name"], inplace=True)
 
     def apply_bonuses(self, team_rating, player_rating) -> Tuple[Any, Any]:
@@ -205,22 +173,16 @@ class Tournament:
             return teams
 
         positions_without_rosters = [
-            team["position"]
-            for team_id, team in teams.items()
-            if team_id in teams_without_rosters
+            team["position"] for team_id, team in teams.items() if team_id in teams_without_rosters
         ]
 
         for team_id, team in teams.items():
             if team_id in teams_without_rosters:
                 continue
 
-            teams_above_without_roster = len(
-                [pos for pos in positions_without_rosters if pos < team["position"]]
-            )
+            teams_above_without_roster = len([pos for pos in positions_without_rosters if pos < team["position"]])
 
-            teams_in_same_position = len(
-                [pos for pos in positions_without_rosters if pos == team["position"]]
-            )
+            teams_in_same_position = len([pos for pos in positions_without_rosters if pos == team["position"]])
 
             if teams_above_without_roster:
                 team["position"] -= teams_above_without_roster

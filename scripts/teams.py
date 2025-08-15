@@ -16,9 +16,7 @@ from typing import List, Tuple
 class TeamRating:
     def __init__(self, filename=None, teams_list=None):
         if not (filename or teams_list):
-            raise Exception(
-                "provide release id, or file with rating, or list of dicts!"
-            )
+            raise Exception("provide release id, or file with rating, or list of dicts!")
         self.q = 1
         if teams_list:
             self.data = pd.DataFrame(teams_list)
@@ -45,11 +43,7 @@ class TeamRating:
             players_release.data[players_release.data["base_team_id"].isin(top_h_ids)]
             .groupby("base_team_id")["rating"]
             .apply(
-                lambda x: (
-                    calc_tech_rating(x.values)
-                    if len(x.values) >= PLAYERS_IN_TEAM_FOR_Q_CALCULATION
-                    else None
-                )
+                lambda x: (calc_tech_rating(x.values) if len(x.values) >= PLAYERS_IN_TEAM_FOR_Q_CALCULATION else None)
             )
             .dropna()
         )
@@ -59,9 +53,7 @@ class TeamRating:
     def calc_c(self):
         ratings = np.copy(self.data.rating.values)
         ratings[::-1].sort()
-        return MAX_BONUS / ratings[:TEAMS_COUNT_FOR_BP].dot(
-            2.0 ** np.arange(0, -TEAMS_COUNT_FOR_BP, -1)
-        )
+        return MAX_BONUS / ratings[:TEAMS_COUNT_FOR_BP].dot(2.0 ** np.arange(0, -TEAMS_COUNT_FOR_BP, -1))
 
     def get_team_rating(self, team_id):
         return self.data.rating.get(team_id, 0)
@@ -80,9 +72,7 @@ class TeamRating:
             self.data.loc[existing_teams, "trb"] * NEW_TEAMS_LOWERING_COEFFICIENT,
         )
         res = []
-        for team_id, team in self.data[
-            self.data["old_release_rating"] != self.data["rating"]
-        ].iterrows():
+        for team_id, team in self.data[self.data["old_release_rating"] != self.data["rating"]].iterrows():
             res.append((team_id, team["rating"]))
         self.data.drop(columns=["old_release_rating"], inplace=True)
         return res
@@ -92,13 +82,9 @@ class TeamRating:
             ~tournament.data.team_id.isin(set(self.data.index)),
             ["team_id", "baseTeamMembers"],
         ].set_index("team_id")
-        if (
-            len(new_teams.index) == 0
-        ):  # Otherwise some strange things happen in the next lines.
+        if len(new_teams.index) == 0:  # Otherwise some strange things happen in the next lines.
             return
-        new_teams["trb"] = new_teams.baseTeamMembers.map(
-            lambda x: player_rating.calc_rt(x, self.q)
-        )
+        new_teams["trb"] = new_teams.baseTeamMembers.map(lambda x: player_rating.calc_rt(x, self.q))
         new_teams.fillna({"trb": 0}, inplace=True)
         new_teams["rating"] = new_teams["trb"] * NEW_TEAMS_LOWERING_COEFFICIENT
         new_teams["prev_rating"] = None

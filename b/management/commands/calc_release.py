@@ -11,7 +11,5 @@ class Command(BaseCommand):
         parser.add_argument("new_release_date")
 
     def handle(self, *args, **options):
-        new_release_date = datetime.date(
-            *map(int, options["new_release_date"].split("-"))
-        )
+        new_release_date = datetime.date(*map(int, options["new_release_date"].split("-")))
         main.calc_release(new_release_date)

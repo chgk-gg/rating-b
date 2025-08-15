@@ -33,23 +33,14 @@ def fast_insert(table: str, data: Iterable[dict], batch_size: int = 5000):
         for row in data_iter:
             batch.append(row)
             if len(batch) >= batch_size:
-                values = ",\n".join(
-                    f'({",".join(str(row[column]) for column in columns)})'
-                    for row in batch
-                )
-                cursor.execute(
-                    f"INSERT INTO {SCHEMA_NAME}.{table} ({columns_joined}) VALUES {values}"
-                )
+                values = ",\n".join(f"({','.join(str(row[column]) for column in columns)})" for row in batch)
+                cursor.execute(f"INSERT INTO {SCHEMA_NAME}.{table} ({columns_joined}) VALUES {values}")
                 batch = []
 
         # Process remaining rows in the final batch
         if batch:
-            values = ",\n".join(
-                f'({",".join(str(row[column]) for column in columns)})' for row in batch
-            )
-            cursor.execute(
-                f"INSERT INTO {SCHEMA_NAME}.{table} ({columns_joined}) VALUES {values}"
-            )
+            values = ",\n".join(f"({','.join(str(row[column]) for column in columns)})" for row in batch)
+            cursor.execute(f"INSERT INTO {SCHEMA_NAME}.{table} ({columns_joined}) VALUES {values}")
 
 
 def get_season(release_date: datetime.date) -> models.Season:
@@ -67,21 +58,12 @@ def get_base_teams_for_players(release_date: datetime.date) -> pd.Series:
         .values("player_id", "base_team_id", "start_date")
     )
     bs_pd = pd.DataFrame(base_teams)
-    return (
-        bs_pd.sort_values("start_date")
-        .groupby("player_id")
-        .last()
-        .base_team_id.astype("Int64")
-    )
+    return bs_pd.sort_values("start_date").groupby("player_id").last().base_team_id.astype("Int64")
 
 
-def get_teams_with_new_players(
-    old_release: datetime.date, new_release: datetime.date
-) -> List[int]:
+def get_teams_with_new_players(old_release: datetime.date, new_release: datetime.date) -> List[int]:
     return list(
-        models.Season_roster.objects.filter(
-            start_date__gt=old_release, start_date__lte=new_release
-        )
+        models.Season_roster.objects.filter(start_date__gt=old_release, start_date__lte=new_release)
         .values_list("team_id", flat=True)
         .distinct()
     )

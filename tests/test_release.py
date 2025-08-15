@@ -29,9 +29,7 @@ class TestReleases(unittest.TestCase):
         cls.release = Release.objects.get(date=release_date)
 
     def test_team_rating_values(self):
-        team_at_first_place = Team_rating.objects.filter(release=self.release).order_by(
-            "place"
-        )[0]
+        team_at_first_place = Team_rating.objects.filter(release=self.release).order_by("place")[0]
         self.assertEqual(45556, team_at_first_place.team_id)
         self.assertEqual(10734, team_at_first_place.rating)
         self.assertEqual(60, team_at_first_place.rating_change)
@@ -39,9 +37,7 @@ class TestReleases(unittest.TestCase):
         self.assertEqual(1, team_at_first_place.place)
         self.assertEqual(0, team_at_first_place.place_change)
 
-        team_at_place_57 = Team_rating.objects.filter(release=self.release).order_by(
-            "place"
-        )[56]
+        team_at_place_57 = Team_rating.objects.filter(release=self.release).order_by("place")[56]
         self.assertEqual(65268, team_at_place_57.team_id)
         self.assertEqual(7652, team_at_place_57.rating)
         self.assertEqual(-83, team_at_place_57.rating_change)
@@ -49,9 +45,7 @@ class TestReleases(unittest.TestCase):
         self.assertEqual(8, team_at_place_57.place_change)
         self.assertEqual(57, team_at_place_57.place)
 
-        team_at_place_400 = Team_rating.objects.filter(release=self.release).order_by(
-            "place"
-        )[399]
+        team_at_place_400 = Team_rating.objects.filter(release=self.release).order_by("place")[399]
         self.assertEqual(69235, team_at_place_400.team_id)
         self.assertEqual(5293, team_at_place_400.rating)
         self.assertEqual(0, team_at_place_400.rating_change)
@@ -60,9 +54,7 @@ class TestReleases(unittest.TestCase):
         self.assertEqual(400, team_at_place_400.place)
 
     def test_tournaments_in_release_values(self):
-        tournaments_in_release = Tournament_in_release.objects.filter(
-            release=self.release
-        )
+        tournaments_in_release = Tournament_in_release.objects.filter(release=self.release)
         self.assertEqual(
             [6044, 6114, 7225, 7325],
             list(tournaments_in_release.values_list("tournament_id", flat=True)),
@@ -77,28 +69,20 @@ class TestReleases(unittest.TestCase):
     def test_missing_player_rating_values(self):
         self.assertEqual(
             0,
-            Player_rating.objects.filter(
-                release=self.release, player_id=100000
-            ).count(),
+            Player_rating.objects.filter(release=self.release, player_id=100000).count(),
         )
 
     def test_player_rating_by_tournament_values(self):
-        player_top_bonuses = Player_rating_by_tournament.objects.filter(
-            release=self.release, player_id=77673
-        )
+        player_top_bonuses = Player_rating_by_tournament.objects.filter(release=self.release, player_id=77673)
         self.assertEqual(7, player_top_bonuses.count())
 
         self.assertEqual(1793, player_top_bonuses.get(tournament_id=7225).cur_score)
         self.assertEqual(1793, player_top_bonuses.get(tournament_id=7225).initial_score)
-        self.assertEqual(
-            0, player_top_bonuses.get(tournament_id=7225).weeks_since_tournament
-        )
+        self.assertEqual(0, player_top_bonuses.get(tournament_id=7225).weeks_since_tournament)
 
         self.assertEqual(1933, player_top_bonuses.get(tournament_id=5923).cur_score)
         self.assertEqual(2053, player_top_bonuses.get(tournament_id=5923).initial_score)
-        self.assertEqual(
-            6, player_top_bonuses.get(tournament_id=5923).weeks_since_tournament
-        )
+        self.assertEqual(6, player_top_bonuses.get(tournament_id=5923).weeks_since_tournament)
 
     def test_tournament_result_values(self):
         tournament_results = Tournament_result.objects.filter(tournament_id=7225)

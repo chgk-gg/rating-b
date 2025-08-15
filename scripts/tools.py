@@ -16,9 +16,7 @@ def rolling_window(a: npt.ArrayLike, window: int) -> npt.ArrayLike:
 def calc_tech_rating(players_ratings: npt.ArrayLike, q: Optional[float] = None):
     pr_sorted = np.sort(players_ratings)[::-1]
     coeffs = np.zeros(pr_sorted.size)
-    coeffs[:TECHNICAL_RATING_RELEVANT_PLAYERS] = TECHNICAL_RATING_DISTRIBUTION[
-        : coeffs.size
-    ]
+    coeffs[:TECHNICAL_RATING_RELEVANT_PLAYERS] = TECHNICAL_RATING_DISTRIBUTION[: coeffs.size]
     tech_rating = np.round(pr_sorted.dot(coeffs))
     if q is not None:
         tech_rating *= q
@@ -39,18 +37,12 @@ def calc_places(points: npt.ArrayLike) -> npt.ArrayLike:
     return places_series.loc[points].values
 
 
-def calc_score_real(
-    predicted_scores: npt.ArrayLike, positions: npt.ArrayLike
-) -> npt.ArrayLike:
+def calc_score_real(predicted_scores: npt.ArrayLike, positions: npt.ArrayLike) -> npt.ArrayLike:
     positions = positions - 1
     pos_counts = pd.Series(positions).value_counts().reset_index()
     pos_counts.columns = ["pos", "n_teams"]
     pos_counts["bonus"] = pos_counts.apply(
-        lambda x: np.mean(
-            predicted_scores[
-                int(x.pos - (x.n_teams - 1) / 2) : int(x.pos + (x.n_teams - 1) / 2) + 1
-            ]
-        ),
+        lambda x: np.mean(predicted_scores[int(x.pos - (x.n_teams - 1) / 2) : int(x.pos + (x.n_teams - 1) / 2) + 1]),
         axis=1,
     )
     return np.round(pos_counts.set_index("pos").loc[positions, "bonus"].values)
@@ -67,26 +59,16 @@ FRIDAY = 4
 
 def get_releases_difference(release1: datetime.date, release2: datetime.date) -> int:
     if release1 > release2:
-        raise AssertionError(
-            f"First release must be before second release but {release1} > {release2}."
-        )
+        raise AssertionError(f"First release must be before second release but {release1} > {release2}.")
     for release in [release1, release2]:
         if LAST_OLD_RELEASE < release < FIRST_NEW_RELEASE:
             raise AssertionError(f"{release} is between old releases and new releases.")
         if (release <= LAST_OLD_RELEASE) and (release.weekday() != FRIDAY):
-            raise AssertionError(
-                f"{release} is before {LAST_OLD_RELEASE} and is not on Friday."
-            )
+            raise AssertionError(f"{release} is before {LAST_OLD_RELEASE} and is not on Friday.")
         if (release >= FIRST_NEW_RELEASE) and (release.weekday() != THURSDAY):
-            raise AssertionError(
-                f"{release} is after {FIRST_NEW_RELEASE} and is not on Thursday."
-            )
+            raise AssertionError(f"{release} is after {FIRST_NEW_RELEASE} and is not on Thursday.")
     if release1 <= LAST_OLD_RELEASE < FIRST_NEW_RELEASE <= release2:
-        return (
-            ((release2 - FIRST_NEW_RELEASE).days // 7)
-            + 1
-            + ((LAST_OLD_RELEASE - release1).days // 7)
-        )
+        return ((release2 - FIRST_NEW_RELEASE).days // 7) + 1 + ((LAST_OLD_RELEASE - release1).days // 7)
     return (release2 - release1).days // 7
 
 
@@ -98,24 +80,14 @@ def next_weekday(d: datetime.date, weekday: int) -> datetime.date:
 
 
 def get_release_date(tournament_end: datetime.date) -> datetime.date:
-    if (
-        LAST_OLD_RELEASE
-        < tournament_end
-        < (FIRST_NEW_RELEASE - datetime.timedelta(days=7))
-    ):
-        raise AssertionError(
-            f"{tournament_end} is between old releases and new releases."
-        )
-    return next_weekday(
-        tournament_end, FRIDAY if (tournament_end <= LAST_OLD_RELEASE) else THURSDAY
-    )
+    if LAST_OLD_RELEASE < tournament_end < (FIRST_NEW_RELEASE - datetime.timedelta(days=7)):
+        raise AssertionError(f"{tournament_end} is between old releases and new releases.")
+    return next_weekday(tournament_end, FRIDAY if (tournament_end <= LAST_OLD_RELEASE) else THURSDAY)
 
 
 def get_prev_release_date(release_date: datetime.date) -> datetime.date:
     if LAST_OLD_RELEASE < release_date < FIRST_NEW_RELEASE:
-        raise AssertionError(
-            f"{release_date} is between old releases and new releases."
-        )
+        raise AssertionError(f"{release_date} is between old releases and new releases.")
     if (release_date < LAST_OLD_RELEASE) and (release_date.weekday() != FRIDAY):
         raise AssertionError(f"{release_date} is old but not on Friday.")
     if (release_date > FIRST_NEW_RELEASE) and (release_date.weekday() != THURSDAY):
@@ -130,7 +102,5 @@ def get_prev_release_date(release_date: datetime.date) -> datetime.date:
 def get_age_in_weeks(tournament_end: datetime.date, release_date: datetime.date) -> int:
     tournament_release_date = get_release_date(tournament_end)
     if tournament_release_date > release_date:
-        raise AssertionError(
-            f"Tournament date {tournament_end} is for future release compared with {release_date}."
-        )
+        raise AssertionError(f"Tournament date {tournament_end} is for future release compared with {release_date}.")
     return get_releases_difference(tournament_release_date, release_date)
