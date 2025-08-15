@@ -232,36 +232,24 @@ name = "rating-b"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
-    { name = "asgiref" },
     { name = "black" },
     { name = "django" },
     { name = "mmh3" },
-    { name = "numpy" },
     { name = "pandas" },
     { name = "psycopg2-binary" },
     { name = "psycopg2-pool" },
-    { name = "python-dateutil" },
     { name = "python-dotenv" },
-    { name = "pytz" },
-    { name = "six" },
-    { name = "sqlparse" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "asgiref", specifier = "==3.9.1" },
     { name = "black", specifier = "==25.1.0" },
     { name = "django", specifier = "==5.0.7" },
     { name = "mmh3", specifier = "==5.1.0" },
-    { name = "numpy", specifier = "==2.1.3" },
     { name = "pandas", specifier = "==2.2.3" },
     { name = "psycopg2-binary", specifier = "==2.9.10" },
     { name = "psycopg2-pool", specifier = "==1.2" },
-    { name = "python-dateutil", specifier = "==2.9.0.post0" },
     { name = "python-dotenv", specifier = "==1.1.1" },
-    { name = "pytz", specifier = "==2025.2" },
-    { name = "six", specifier = "==1.16.0" },
-    { name = "sqlparse", specifier = "==0.5.3" },
 ]
 
 [[package]]
