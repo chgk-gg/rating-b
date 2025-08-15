@@ -48,5 +48,5 @@ jobs:
           DJANGO_POSTGRES_DB_PORT: 5432
           DJANGO_SETTINGS_MODULE: dj.settings
           DJANGO_SECRET_KEY: dummy_value
-      - name: Run Black formatter
-        run: uv run python -m black . --check
+      - name: Run linter
+        run: uv run ruff check

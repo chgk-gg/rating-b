@@ -25,18 +25,14 @@ class PlayerRating:
         self.release_for_squads = release_for_squads
         self.players_dict = {
             player_rating["player_id"]: player_rating | {"top_bonuses": []}
-            for player_rating in self.release.player_rating_set.values(
-                "player_id", "rating"
-            )
+            for player_rating in self.release.player_rating_set.values("player_id", "rating")
         }
 
         if self.release.date == tools.LAST_OLD_RELEASE:
             self.load_last_old_release()
         else:
             for player_bonus in self.release.player_rating_by_tournament_set.all():
-                self.players_dict[player_bonus.player_id]["top_bonuses"].append(
-                    player_bonus
-                )
+                self.players_dict[player_bonus.player_id]["top_bonuses"].append(player_bonus)
         # adding base_team_ids
         self.data = (
             pd.DataFrame(self.players_dict.values())
@@ -48,9 +44,7 @@ class PlayerRating:
         )
 
     def update_places(self):
-        self.data["place"] = (
-            self.data["rating"].rank(ascending=False, method="min").astype("Int32")
-        )
+        self.data["place"] = self.data["rating"].rank(ascending=False, method="min").astype("Int32")
 
     def load_last_old_release(self):
         tournament_end_dates = db_tools.get_tournament_end_dates()
@@ -60,18 +54,14 @@ class PlayerRating:
         ):
             if item["player_id"] in self.players_dict:
                 if item["tournament_id"] not in age_in_weeks_by_tournament_id:
-                    age_in_weeks_by_tournament_id[item["tournament_id"]] = (
-                        get_age_in_weeks(
-                            tournament_end_dates[item["tournament_id"]],
-                            self.release_for_squads.date,
-                        )
+                    age_in_weeks_by_tournament_id[item["tournament_id"]] = get_age_in_weeks(
+                        tournament_end_dates[item["tournament_id"]],
+                        self.release_for_squads.date,
                     )
                 bonus = models.Player_rating_by_tournament(
                     release_id=self.release.id,
                     player_id=item["player_id"],
-                    weeks_since_tournament=age_in_weeks_by_tournament_id[
-                        item["tournament_id"]
-                    ],
+                    weeks_since_tournament=age_in_weeks_by_tournament_id[item["tournament_id"]],
                     tournament_id=item["tournament_id"],
                     initial_score=item["rating_original"],
                     cur_score=item["rating_now"],
@@ -91,9 +81,7 @@ class PlayerRating:
         хотя бы один приписанный к ним игрок
         :return: pd.Series, name: rating, index: base_team_id, values: техрейтинги
         """
-        res = self.data.groupby("base_team_id")["rating"].apply(
-            lambda x: calc_tech_rating(x.values, q)
-        )
+        res = self.data.groupby("base_team_id")["rating"].apply(lambda x: calc_tech_rating(x.values, q))
         res.name = "trb"
         return res
 
@@ -113,9 +101,7 @@ class PlayerRating:
         def leave_top_N(
             v: List[models.Player_rating_by_tournament],
         ) -> List[models.Player_rating_by_tournament]:
-            return sorted(v, key=lambda x: -x.raw_cur_score)[
-                :N_BEST_TOURNAMENTS_FOR_PLAYER_RATING
-            ]
+            return sorted(v, key=lambda x: -x.raw_cur_score)[:N_BEST_TOURNAMENTS_FOR_PLAYER_RATING]
 
         self.data["top_bonuses"] = self.data["top_bonuses"].map(leave_top_N)
 

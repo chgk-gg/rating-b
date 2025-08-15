@@ -1,4 +1,3 @@
-from django.contrib.postgres import fields
 from django.db import models
 
 from scripts import constants
@@ -56,9 +55,7 @@ TRNMT_TYPES = {
 
 class Tournament(models.Model):
     title = models.CharField(verbose_name="Название", max_length=100)
-    typeoft_id = models.SmallIntegerField(
-        verbose_name="Тип турнира", choices=TRNMT_TYPES.items()
-    )
+    typeoft_id = models.SmallIntegerField(verbose_name="Тип турнира", choices=TRNMT_TYPES.items())
     maii_rating = models.BooleanField(verbose_name="Учитывается ли в рейтинге МАИИ")
     start_datetime = models.DateTimeField(verbose_name="Начало отыгрыша")
     end_datetime = models.DateTimeField(verbose_name="Конец отыгрыша")
@@ -77,9 +74,7 @@ class Player(models.Model):
 
 
 class Team_score(models.Model):  # Очки команды на данном турнире
-    tournament = models.ForeignKey(
-        Tournament, verbose_name="Турнир", on_delete=models.CASCADE
-    )
+    tournament = models.ForeignKey(Tournament, verbose_name="Турнир", on_delete=models.CASCADE)
     team = models.ForeignKey(Team, verbose_name="Команда", on_delete=models.CASCADE)
     title = models.CharField(
         verbose_name="Название команды на турнире",
@@ -87,9 +82,7 @@ class Team_score(models.Model):  # Очки команды на данном т�
         db_column="team_title",
     )
     total = models.SmallIntegerField(verbose_name="Число взятых вопросов")
-    position = models.DecimalField(
-        verbose_name="Занятое место", default=0, max_digits=5, decimal_places=1
-    )
+    position = models.DecimalField(verbose_name="Занятое место", default=0, max_digits=5, decimal_places=1)
 
     class Meta:
         db_table = "tournament_results"
@@ -102,9 +95,7 @@ class Team_score(models.Model):  # Очки команды на данном т�
 
 
 class Roster(models.Model):  # Состав команды на данном турнире
-    tournament = models.ForeignKey(
-        Tournament, verbose_name="Турнир", on_delete=models.CASCADE
-    )
+    tournament = models.ForeignKey(Tournament, verbose_name="Турнир", on_delete=models.CASCADE)
     team = models.ForeignKey(Team, verbose_name="Команда", on_delete=models.CASCADE)
     player = models.ForeignKey(Player, verbose_name="Игрок", on_delete=models.CASCADE)
     flag = models.CharField(verbose_name="Флаг (Б или Л)", max_length=1, null=True)
@@ -148,18 +139,10 @@ class Season_roster(models.Model):  # Базовый состав команды
 
 
 class Player_rating_by_tournament_old(models.Model):
-    player = models.ForeignKey(
-        Player, verbose_name="Игрок", on_delete=models.CASCADE, null=True
-    )
-    tournament = models.ForeignKey(
-        Tournament, verbose_name="Турнир", on_delete=models.PROTECT, null=True
-    )
-    rating_original = models.IntegerField(
-        verbose_name="Бонус игрока за турнир", null=True
-    )
-    rating_now = models.IntegerField(
-        verbose_name="Вклад в рейтинг игрока в последнем релизе рейтинга МАК"
-    )
+    player = models.ForeignKey(Player, verbose_name="Игрок", on_delete=models.CASCADE, null=True)
+    tournament = models.ForeignKey(Tournament, verbose_name="Турнир", on_delete=models.PROTECT, null=True)
+    rating_original = models.IntegerField(verbose_name="Бонус игрока за турнир", null=True)
+    rating_now = models.IntegerField(verbose_name="Вклад в рейтинг игрока в последнем релизе рейтинга МАК")
 
     class Meta:
         db_table = "rating_individual_old_details"
@@ -177,13 +160,9 @@ class Player_rating_by_tournament_old(models.Model):
 class Release(models.Model):
     title = models.CharField(verbose_name="Название", max_length=250)
     date = models.DateField(verbose_name="Дата из мира игр", unique=True)
-    updated_at = models.DateTimeField(
-        verbose_name="Дата последнего изменения", auto_now=True
-    )
+    updated_at = models.DateTimeField(verbose_name="Дата последнего изменения", auto_now=True)
     hash = models.IntegerField(verbose_name="Hash of ratings in this release")
-    q = models.DecimalField(
-        max_digits=7, decimal_places=5, verbose_name="Q coefficient for release"
-    )
+    q = models.DecimalField(max_digits=7, decimal_places=5, verbose_name="Q coefficient for release")
 
     class Meta:
         db_table = "release"
@@ -191,9 +170,7 @@ class Release(models.Model):
 
 class Team_rating(models.Model):
     release = models.ForeignKey(Release, verbose_name="Релиз", on_delete=models.CASCADE)
-    team = models.ForeignKey(
-        Team, verbose_name="Команда", on_delete=models.PROTECT, null=True
-    )
+    team = models.ForeignKey(Team, verbose_name="Команда", on_delete=models.PROTECT, null=True)
     # team_id = models.IntegerField(verbose_name='Команда')
     rating = models.IntegerField(verbose_name="Рейтинг команды")
     rating_for_next_release = models.IntegerField(
@@ -201,15 +178,9 @@ class Team_rating(models.Model):
         null=True,
         default=None,
     )
-    trb = models.IntegerField(
-        verbose_name="Технический рейтинг команды по ее базовому составу TRB"
-    )
-    rating_change = models.IntegerField(
-        verbose_name="Изменение с прошлого релиза", null=True
-    )
-    place = models.DecimalField(
-        verbose_name="Место в релизе", max_digits=7, decimal_places=1, null=True
-    )
+    trb = models.IntegerField(verbose_name="Технический рейтинг команды по ее базовому составу TRB")
+    rating_change = models.IntegerField(verbose_name="Изменение с прошлого релиза", null=True)
+    place = models.DecimalField(verbose_name="Место в релизе", max_digits=7, decimal_places=1, null=True)
     place_change = models.DecimalField(
         verbose_name="Изменение места с прошлого релиза",
         max_digits=7,
@@ -255,17 +226,11 @@ class Team_lost_heredity(models.Model):
 
 class Player_rating(models.Model):
     release = models.ForeignKey(Release, verbose_name="Релиз", on_delete=models.CASCADE)
-    player = models.ForeignKey(
-        Player, verbose_name="Игрок", on_delete=models.CASCADE, null=True
-    )
+    player = models.ForeignKey(Player, verbose_name="Игрок", on_delete=models.CASCADE, null=True)
     # player_id = models.IntegerField(verbose_name='Игрок')
     rating = models.IntegerField(verbose_name="Рейтинг игрока")
-    rating_change = models.IntegerField(
-        verbose_name="Изменение с прошлого релиза", null=True
-    )
-    place = models.DecimalField(
-        verbose_name="Место в релизе", max_digits=7, decimal_places=1, null=True
-    )
+    rating_change = models.IntegerField(verbose_name="Изменение с прошлого релиза", null=True)
+    place = models.DecimalField(verbose_name="Место в релизе", max_digits=7, decimal_places=1, null=True)
     place_change = models.DecimalField(
         verbose_name="Изменение места с прошлого релиза",
         max_digits=7,
@@ -290,12 +255,8 @@ class Player_rating(models.Model):
 
 
 class Team_rating_by_player(models.Model):
-    team_rating = models.ForeignKey(
-        Team_rating, verbose_name="Рейтинг команды в релизе", on_delete=models.CASCADE
-    )
-    player = models.ForeignKey(
-        Player, verbose_name="Игрок", on_delete=models.CASCADE, null=True
-    )
+    team_rating = models.ForeignKey(Team_rating, verbose_name="Рейтинг команды в релизе", on_delete=models.CASCADE)
+    player = models.ForeignKey(Player, verbose_name="Игрок", on_delete=models.CASCADE, null=True)
     # player_id = models.IntegerField(verbose_name='Игрок')
     order = models.SmallIntegerField(
         verbose_name="Порядок игрока по рейтингу по убыванию, наибольший рейтинг получает 1"
@@ -316,38 +277,22 @@ class Team_rating_by_player(models.Model):
 
 
 class Tournament_result(models.Model):
-    tournament = models.ForeignKey(
-        Tournament, verbose_name="Турнир", on_delete=models.PROTECT, null=True
-    )
+    tournament = models.ForeignKey(Tournament, verbose_name="Турнир", on_delete=models.PROTECT, null=True)
     # tournament_id = models.IntegerField(verbose_name='Турнир')
-    team = models.ForeignKey(
-        Team, verbose_name="Команда", on_delete=models.PROTECT, null=True
-    )
+    team = models.ForeignKey(Team, verbose_name="Команда", on_delete=models.PROTECT, null=True)
     # team_id = models.IntegerField(verbose_name='Команда')
-    mp = models.DecimalField(
-        verbose_name="Предсказанное место", max_digits=6, decimal_places=1
-    )
+    mp = models.DecimalField(verbose_name="Предсказанное место", max_digits=6, decimal_places=1)
     bp = models.IntegerField(verbose_name="Предсказанный балл")
-    m = models.DecimalField(
-        verbose_name="Занятое место", max_digits=6, decimal_places=1
-    )
+    m = models.DecimalField(verbose_name="Занятое место", max_digits=6, decimal_places=1)
     rating = models.IntegerField(verbose_name="Набранный балл B")
     d1 = models.IntegerField(verbose_name="D1")
     d2 = models.IntegerField(verbose_name="D2")
-    r = models.IntegerField(
-        verbose_name="R: Релизный рейтинг команды из последнего релиза"
-    )
-    rt = models.IntegerField(
-        verbose_name="RT: Технический рейтинг команды по фактическому составу"
-    )
-    rb = models.IntegerField(
-        verbose_name="RB: Технический рейтинг команды по базовому составу"
-    )
+    r = models.IntegerField(verbose_name="R: Релизный рейтинг команды из последнего релиза")
+    rt = models.IntegerField(verbose_name="RT: Технический рейтинг команды по фактическому составу")
+    rb = models.IntegerField(verbose_name="RB: Технический рейтинг команды по базовому составу")
     rg = models.IntegerField(verbose_name="RG: Используемый рейтинг команды")
     rating_change = models.IntegerField(verbose_name="Результат команды на турнире D")
-    is_in_maii_rating = models.BooleanField(
-        verbose_name="Учитывается ли в рейтинге МАИИ"
-    )
+    is_in_maii_rating = models.BooleanField(verbose_name="Учитывается ли в рейтинге МАИИ")
 
     class Meta:
         db_table = "tournament_result"
@@ -371,9 +316,7 @@ class Tournament_result(models.Model):
 # We use either tournament_result (for new tournaments) or tournament+initial_score
 class Player_rating_by_tournament(models.Model):
     release = models.ForeignKey(Release, verbose_name="Релиз", on_delete=models.CASCADE)
-    player = models.ForeignKey(
-        Player, verbose_name="Игрок", on_delete=models.CASCADE, null=True
-    )
+    player = models.ForeignKey(Player, verbose_name="Игрок", on_delete=models.CASCADE, null=True)
     # player_id = models.IntegerField(verbose_name='Игрок')
     tournament_result = models.ForeignKey(
         Tournament_result,
@@ -381,16 +324,10 @@ class Player_rating_by_tournament(models.Model):
         on_delete=models.CASCADE,
         null=True,
     )
-    tournament = models.ForeignKey(
-        Tournament, verbose_name="Турнир", on_delete=models.PROTECT, null=True
-    )
+    tournament = models.ForeignKey(Tournament, verbose_name="Турнир", on_delete=models.PROTECT, null=True)
     # tournament_id = models.IntegerField(verbose_name='Турнир', null=True)
-    initial_score = models.IntegerField(
-        verbose_name="Бонус игрока за турнир", null=True
-    )
-    weeks_since_tournament = models.SmallIntegerField(
-        verbose_name="Число недель, прошедших после турнира, начиная с 0"
-    )
+    initial_score = models.IntegerField(verbose_name="Бонус игрока за турнир", null=True)
+    weeks_since_tournament = models.SmallIntegerField(verbose_name="Число недель, прошедших после турнира, начиная с 0")
     cur_score = models.IntegerField(verbose_name="Вклад в рейтинг игрока в этом релизе")
     raw_cur_score = None  # Float value for better precision
 
@@ -406,18 +343,14 @@ class Player_rating_by_tournament(models.Model):
 
     def recalc_cur_score(self):
         self.weeks_since_tournament += 1
-        self.raw_cur_score = self.initial_score * (
-            constants.J**self.weeks_since_tournament
-        )
+        self.raw_cur_score = self.initial_score * (constants.J**self.weeks_since_tournament)
         self.cur_score = round(self.raw_cur_score)
 
 
 # Stores all tournaments that were counted in given release.
 class Tournament_in_release(models.Model):
     release = models.ForeignKey(Release, verbose_name="Релиз", on_delete=models.CASCADE)
-    tournament = models.ForeignKey(
-        Tournament, verbose_name="Турнир", on_delete=models.PROTECT
-    )
+    tournament = models.ForeignKey(Tournament, verbose_name="Турнир", on_delete=models.PROTECT)
 
     # tournament_id = models.IntegerField(verbose_name='Турнир')
     class Meta:
