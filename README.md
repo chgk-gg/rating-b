@@ -8,17 +8,15 @@ cp .env.example .env
 
 `DJANGO_SECRET_KEY` needs to be present but can have any value.
 
-Create a virtual environment, install dependencies:
+We use [uv](https://docs.astral.sh/uv/) as a package manager. You can [install it with a standalone installer or a package manager like Homebrew](https://docs.astral.sh/uv/getting-started/installation/). To install dependencies, run:
 
 ```bash
-python -m venv ./venv
-source ./venv/bin/activate
-pip install -r requirements.txt
+uv sync
 ```
 
 ## Commands
-* `python manage.py calc_all_releases [--first_to_calc=2021-09-09]` calculates all releases from first_to_calc until today.
-* `python manage.py calc_release YYYY-MM-DD` reads previous release data from our DB (it must already exist)
+* `uv run manage.py calc_all_releases [--first_to_calc=2021-09-09]` calculates all releases from first_to_calc until today.
+* `uv run manage.py calc_release YYYY-MM-DD` reads previous release data from our DB (it must already exist)
   and creates new release for YYYY-MM-DD (this date must be Thursday for 2021+ and Friday for 2020-).
 
 ## Project structure
