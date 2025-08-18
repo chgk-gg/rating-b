@@ -46,6 +46,18 @@ class PlayerRating:
     def update_places(self):
         self.data["place"] = self.data["rating"].rank(ascending=False, method="min").astype("Int32")
 
+    def reset_rating_for_dead_players(self, previous_release_date):
+        """
+        We reset rating to 0 for players about whom we know that they died before the previous release.
+        """
+        dead_players = db_tools.get_dead_players(previous_release_date)
+        self.data.loc[self.data.index.isin(dead_players), "rating"] = 0
+        self.data.loc[self.data.index.isin(dead_players), "top_bonuses"] = (
+            self.data.loc[self.data.index.isin(dead_players), "top_bonuses"].apply(
+                lambda x: []
+            )
+        )
+
     def load_last_old_release(self):
         tournament_end_dates = db_tools.get_tournament_end_dates()
         age_in_weeks_by_tournament_id = {}

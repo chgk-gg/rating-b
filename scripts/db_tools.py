@@ -74,3 +74,9 @@ def get_tournament_end_dates() -> Dict[int, datetime.date]:
         tournament["pk"]: tournament["end_datetime"].date()
         for tournament in models.Tournament.objects.all().values("pk", "end_datetime")
     }
+
+
+def get_dead_players(date) -> set[int]:
+    return set(
+        models.Player.objects.filter(date_died__lte=date).values_list("id", flat=True)
+    )

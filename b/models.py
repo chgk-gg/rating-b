@@ -68,6 +68,7 @@ class Player(models.Model):
     last_name = models.CharField(verbose_name="Фамилия", max_length=100)
     first_name = models.CharField(verbose_name="Имя", max_length=100)
     patronymic = models.CharField(verbose_name="Отчество", max_length=100)
+    date_died = models.DateField(verbose_name="Дата смерти", null=True, blank=True)
 
     class Meta:
         db_table = "players"
