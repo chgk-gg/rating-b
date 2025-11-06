@@ -11,7 +11,7 @@ dependencies = [
     "pandas==2.2.3",
     "psycopg2-binary==2.9.10",
     "psycopg2-pool==1.2",
-    "python-dotenv==1.1.1",
+    "python-dotenv==1.2.1",
     "mmh3==5.2.0",
 ]
 
