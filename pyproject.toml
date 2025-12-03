@@ -7,7 +7,7 @@ license = {text = "GNU AGPL"}
 readme = "README.md"
 requires-python = "~=3.12.0"
 dependencies = [
-    "django==5.0.7",
+    "django==6.0",
     "pandas==2.2.3",
     "psycopg2-binary==2.9.11",
     "psycopg2-pool==1.2",
