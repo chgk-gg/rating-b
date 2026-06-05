@@ -12,7 +12,7 @@ dependencies = [
     "psycopg2-binary==2.9.11",
     "psycopg2-pool==1.2",
     "python-dotenv==1.2.1",
-    "mmh3==5.2.0",
+    "mmh3==5.2.1",
 ]
 
 [tool.hatch.build.targets.wheel]
