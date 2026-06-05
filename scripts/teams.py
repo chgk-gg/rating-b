@@ -1,4 +1,4 @@
-from .tools import calc_tech_rating
+from .tools import calc_tech_rating, DataFrameBacked
 from .tournament import Tournament
 from .players import PlayerRating
 from .constants import (
@@ -13,7 +13,7 @@ import numpy as np
 from typing import List, Tuple
 
 
-class TeamRating:
+class TeamRating(DataFrameBacked):
     def __init__(self, filename=None, teams_list=None):
         if not (filename or teams_list):
             raise Exception("provide release id, or file with rating, or list of dicts!")

@@ -56,8 +56,8 @@ def make_step_for_teams_and_players(
         new_player_ids |= tournament.get_new_player_ids(existing_player_ids)
 
     logger.info("Calculated tournament ratings")
-    final_teams = copy.deepcopy(initial_teams)
-    final_players = copy.deepcopy(initial_players)
+    final_teams = initial_teams.copy()
+    final_players = initial_players.copy()
     if new_player_ids:
         new_players = (
             pd.DataFrame(({"player_id": player_id, "rating": 0, "top_bonuses": []} for player_id in new_player_ids))
