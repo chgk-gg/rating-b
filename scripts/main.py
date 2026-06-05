@@ -1,4 +1,3 @@
-import copy
 import datetime
 import decimal
 import sys
@@ -17,7 +16,7 @@ from . import tools
 from . import tournament as trnmt
 from .teams import TeamRating
 from .players import PlayerRating
-from .changes import calculate_hash
+from .changes import fingerprint
 from .constants import SCHEMA_NAME
 
 load_dotenv()
@@ -56,8 +55,8 @@ def make_step_for_teams_and_players(
         new_player_ids |= tournament.get_new_player_ids(existing_player_ids)
 
     logger.info("Calculated tournament ratings")
-    final_teams = copy.deepcopy(initial_teams)
-    final_players = copy.deepcopy(initial_players)
+    final_teams = initial_teams.copy()
+    final_players = initial_players.copy()
     if new_player_ids:
         new_players = (
             pd.DataFrame(({"player_id": player_id, "rating": 0, "top_bonuses": []} for player_id in new_player_ids))
@@ -84,24 +83,9 @@ def make_step_for_teams_and_players(
     return final_teams, final_players
 
 
-# Saves provided teams and players ratings to our DB for provided release date
-def dump_release(
-    release: models.Release,
-    teams: pd.DataFrame,
-    player_rating: PlayerRating,
-    tournaments: Iterable[trnmt.Tournament],
-):
-    logger.info(f"Saving release {release.id}")
-    delete_previous_results(release.id)
-    logger.info("Deleted previous results")
-    save_player_rating(release.id, player_rating)
-    logger.info("Saved player ratings")
-    save_team_ratings(release.id, teams)
-    logger.info("Saved team ratings")
-    save_player_rating_by_tournament(release.id, player_rating)
-    logger.info("Saved player ratings by tournament")
-    save_tournaments_in_release(release.id, tournaments)
-    logger.info("Saved tournaments in release")
+# The build_* functions below produce the exact rows that would be written for a
+# release. They are used both to fingerprint the release (to decide whether the
+# write can be skipped) and, when it cannot, as the payload for fast_insert.
 
 
 def delete_previous_results(release_id):
@@ -112,8 +96,13 @@ def delete_previous_results(release_id):
         cursor.execute(f"delete from {SCHEMA_NAME}.tournament_in_release where release_id = {release_id}")
 
 
-def save_player_rating(release_id: int, player_rating: PlayerRating):
-    player_ratings = (
+def delete_tournament_result(tournament_id):
+    with connection.cursor() as cursor:
+        cursor.execute(f"delete from {SCHEMA_NAME}.tournament_result where tournament_id = {tournament_id}")
+
+
+def build_player_rating_rows(release_id: int, player_rating: PlayerRating) -> List[dict]:
+    return [
         {
             "release_id": release_id,
             "player_id": player_id,
@@ -123,12 +112,11 @@ def save_player_rating(release_id: int, player_rating: PlayerRating):
         }
         for player_id, player in player_rating.data.iterrows()
         if player["rating"] > 0
-    )
-    db_tools.fast_insert("player_rating", player_ratings)
+    ]
 
 
-def save_team_ratings(release_id: int, teams: pd.DataFrame):
-    team_ratings = (
+def build_team_rating_rows(release_id: int, teams: pd.DataFrame) -> List[dict]:
+    return [
         {
             "release_id": release_id,
             "team_id": team_id,
@@ -139,12 +127,11 @@ def save_team_ratings(release_id: int, teams: pd.DataFrame):
             "place_change": ((decimal.Decimal(team["place"]) - team["prev_place"]) if team["prev_place"] else "NULL"),
         }
         for team_id, team in teams.iterrows()
-    )
-    db_tools.fast_insert("team_rating", team_ratings)
+    ]
 
 
-def save_player_rating_by_tournament(release_id: int, player_rating: PlayerRating):
-    bonuses = (
+def build_player_rating_by_tournament_rows(release_id: int, player_rating: PlayerRating) -> List[dict]:
+    return [
         {
             "release_id": release_id,
             "player_id": player_id,
@@ -157,25 +144,20 @@ def save_player_rating_by_tournament(release_id: int, player_rating: PlayerRatin
         for player_id, player in player_rating.data.iterrows()
         if player["rating"] != 0
         for rating_by_trnmt in player["top_bonuses"]
-    )
-    db_tools.fast_insert("player_rating_by_tournament", bonuses)
+    ]
 
 
-def save_tournaments_in_release(release_id: int, tournaments: Iterable[trnmt.Tournament]):
-    tournaments_in_release = (
+def build_tournaments_in_release_rows(release_id: int, tournaments: Iterable[trnmt.Tournament]) -> List[dict]:
+    return [
         {"release_id": release_id, "tournament_id": tournament.id}
         for tournament in tournaments
         if tournament.is_in_maii_rating
-    )
-    db_tools.fast_insert("tournament_in_release", tournaments_in_release)
+    ]
 
 
-# Saves tournament bonuses that were already calculated.
-def dump_team_bonuses_for_tournament(trnmt: trnmt.Tournament):
-    with connection.cursor() as cursor:
-        cursor.execute(f"delete from {SCHEMA_NAME}.tournament_result where tournament_id = {trnmt.id}")
-
-    tournament_results = [
+# Builds the already-calculated tournament bonuses rows (without touching the DB).
+def build_tournament_result_rows(trnmt: trnmt.Tournament) -> List[dict]:
+    return [
         {
             "tournament_id": trnmt.id,
             "team_id": team["team_id"],
@@ -194,7 +176,6 @@ def dump_team_bonuses_for_tournament(trnmt: trnmt.Tournament):
         }
         for _, team in trnmt.data.iterrows()
     ]
-    db_tools.fast_insert("tournament_result", tournament_results)
 
 
 def dump_rating_for_next_release(old_release: models.Release, teams_with_updated_rating: List[Tuple[int, int]]):
@@ -279,24 +260,40 @@ def calc_release(next_release_date: datetime.date):
     logger.info("Made a step for teams and players")
     new_teams.data["place"] = tools.calc_places(new_teams.data["rating"].values)
 
+    # Build every row we would write, then fingerprint it. The fingerprint covers
+    # all written columns, so if it matches the stored one nothing changed and we
+    # can skip the (expensive) delete+reinsert entirely.
+    tournament_result_rows = {tournament.id: build_tournament_result_rows(tournament) for tournament in tournaments}
+    table_rows = {
+        "tournament_result": [row for rows in tournament_result_rows.values() for row in rows],
+        "player_rating": build_player_rating_rows(next_release.id, new_players),
+        "team_rating": build_team_rating_rows(next_release.id, teams_to_dump(next_release_date, new_teams)),
+        "player_rating_by_tournament": build_player_rating_by_tournament_rows(next_release.id, new_players),
+        "tournament_in_release": build_tournaments_in_release_rows(next_release.id, tournaments),
+    }
+    release_hash = fingerprint(table_rows)
+    if release_hash == next_release.hash:
+        logger.info(f"Release {next_release.id} unchanged; skipping write")
+        return
+
+    logger.info("hashes are different, updating release")
     with transaction.atomic():
         for tournament in tournaments:
-            dump_team_bonuses_for_tournament(tournament)
+            delete_tournament_result(tournament.id)
+            db_tools.fast_insert("tournament_result", tournament_result_rows[tournament.id])
         logger.info("Saved tournament bonuses")
-        dump_release(
-            next_release,
-            teams_to_dump(next_release_date, new_teams),
-            new_players,
-            tournaments,
-        )
+        delete_previous_results(next_release.id)
+        logger.info("Deleted previous results")
+        db_tools.fast_insert("player_rating", table_rows["player_rating"])
+        db_tools.fast_insert("team_rating", table_rows["team_rating"])
+        db_tools.fast_insert("player_rating_by_tournament", table_rows["player_rating_by_tournament"])
+        db_tools.fast_insert("tournament_in_release", table_rows["tournament_in_release"])
+        logger.info(f"Saved release {next_release.id}")
 
-    release_hash = calculate_hash(new_players, new_teams, tournaments)
-    if release_hash != next_release.hash:
-        logger.info("hashes are different, updating release")
-        next_release.updated_at = timezone.now()
-        next_release.hash = release_hash
-        next_release.q = new_teams.q
-        next_release.save()
+    next_release.updated_at = timezone.now()
+    next_release.hash = release_hash
+    next_release.q = new_teams.q
+    next_release.save()
 
 
 # Calculates all releases starting from FIRST_NEW_RELEASE until current date

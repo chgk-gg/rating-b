@@ -28,6 +28,10 @@ jobs:
         run: pg_restore --no-owner -h localhost -U postgres -d test_db tests/rating.backup
         env:
           PGPASSWORD: postgres
+      - name: Widen release.hash to 64-bit
+        run: psql -h localhost -U postgres -d test_db -c "ALTER TABLE b.release ALTER COLUMN hash TYPE bigint;"
+        env:
+          PGPASSWORD: postgres
       - name: Install uv
         uses: astral-sh/setup-uv@v8.1.0
         with:

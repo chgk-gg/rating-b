@@ -2,7 +2,7 @@ import pandas as pd
 from typing import List
 import logging
 
-from .tools import calc_tech_rating, get_age_in_weeks
+from .tools import calc_tech_rating, get_age_in_weeks, DataFrameBacked
 from .constants import N_BEST_TOURNAMENTS_FOR_PLAYER_RATING
 from scripts import db_tools, tools
 from b import models
@@ -10,7 +10,7 @@ from b import models
 logger = logging.getLogger(__name__)
 
 
-class PlayerRating:
+class PlayerRating(DataFrameBacked):
     def __init__(self, release=None, release_for_squads=None, file_path=None):
         if release is None:
             raise Exception("no release is passed")

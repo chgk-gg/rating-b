@@ -1,9 +1,26 @@
+import copy
 import numpy as np
 import pandas as pd
 import datetime
 import numpy.typing as npt
 from typing import Optional
 from .constants import TECHNICAL_RATING_DISTRIBUTION, TECHNICAL_RATING_RELEVANT_PLAYERS
+
+
+class DataFrameBacked:
+    """Mixin for rating containers built around a ``data`` DataFrame.
+
+    Provides a cheap replacement for ``copy.deepcopy``: it isolates the DataFrame
+    structure (so column assignments and concats don't leak) and shallow-copies the
+    scalar attributes, without recursively copying every cell. Object cells (e.g. a
+    ``top_bonuses`` column of lists) stay shared, so callers must discard the
+    original after copying.
+    """
+
+    def copy(self):
+        new = copy.copy(self)
+        new.data = self.data.copy()
+        return new
 
 
 def rolling_window(a: npt.ArrayLike, window: int) -> npt.ArrayLike:
