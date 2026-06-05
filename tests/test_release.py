@@ -23,10 +23,10 @@ from b.models import (
 class TestReleases(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        release_date = date(2021, 9, 16)
-        calc_release(release_date)
-        calc_all_releases(release_date, release_date + timedelta(days=14))
-        cls.release = Release.objects.get(date=release_date)
+        cls.release_date = date(2021, 9, 16)
+        calc_release(cls.release_date)
+        calc_all_releases(cls.release_date, cls.release_date + timedelta(days=14))
+        cls.release = Release.objects.get(date=cls.release_date)
 
     def test_team_rating_values(self):
         team_at_first_place = Team_rating.objects.filter(release=self.release).order_by("place")[0]
@@ -115,3 +115,22 @@ class TestReleases(unittest.TestCase):
         self.assertEqual(7106, place_20.rt)
         self.assertEqual(6954, place_20.r)
         self.assertEqual(True, place_20.is_in_maii_rating)
+
+    def test_unchanged_release_skips_write(self):
+        # The release was already calculated in setUpClass, so recalculating it with
+        # the same inputs must match the stored fingerprint and skip the write
+        # entirely: no rows are rewritten and updated_at is not bumped.
+        release_before = Release.objects.get(date=self.release_date)
+        player_rows_before = Player_rating.objects.filter(release=release_before).count()
+        team_rows_before = Team_rating.objects.filter(release=release_before).count()
+
+        with self.assertLogs("scripts.main", level="INFO") as logs:
+            calc_release(self.release_date)
+
+        self.assertTrue(any("skipping write" in message for message in logs.output))
+
+        release_after = Release.objects.get(date=self.release_date)
+        self.assertEqual(release_before.updated_at, release_after.updated_at)
+        self.assertEqual(release_before.hash, release_after.hash)
+        self.assertEqual(player_rows_before, Player_rating.objects.filter(release=release_after).count())
+        self.assertEqual(team_rows_before, Team_rating.objects.filter(release=release_after).count())
