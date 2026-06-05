@@ -1,5 +1,8 @@
+import csv
 import datetime
-from typing import Dict, List, Iterable
+import io
+import math
+from typing import Dict, List, Iterable, Sequence
 from django.db.models import F, Q
 from django.db import connection
 import logging
@@ -41,6 +44,68 @@ def fast_insert(table: str, data: Iterable[dict], batch_size: int = 5000):
         if batch:
             values = ",\n".join(f"({','.join(str(row[column]) for column in columns)})" for row in batch)
             cursor.execute(f"INSERT INTO {SCHEMA_NAME}.{table} ({columns_joined}) VALUES {values}")
+
+
+def fast_copy(
+    table: str,
+    data: Iterable[dict],
+    columns: Sequence[str],
+    chunk_size: int = 100_000,
+):
+    """
+    Bulk-loads rows into {SCHEMA_NAME}.{table} via PostgreSQL COPY FROM STDIN.
+
+    `columns` is the explicit list of columns to write; each row in `data` is a
+    dict whose keys include those columns. None values become SQL NULL.
+    Booleans are emitted as `true`/`false`. The CSV stream uses an unquoted
+    empty field for NULL (`NULL ''`), so this helper is only safe for tables
+    whose target columns are not text/varchar where empty string is a valid
+    value distinct from NULL.
+    """
+    columns_joined = ", ".join(columns)
+    copy_sql = (
+        f"COPY {SCHEMA_NAME}.{table} ({columns_joined}) "
+        "FROM STDIN WITH (FORMAT csv, NULL '')"
+    )
+
+    def flush(buf: io.StringIO):
+        if buf.tell() == 0:
+            return
+        buf.seek(0)
+        with connection.cursor() as cursor:
+            cursor.copy_expert(copy_sql, buf)
+
+    buf = io.StringIO()
+    writer = csv.writer(buf)
+    rows_in_buf = 0
+    for row in data:
+        writer.writerow(_render_csv_cell(row.get(column)) for column in columns)
+        rows_in_buf += 1
+        if rows_in_buf >= chunk_size:
+            flush(buf)
+            buf = io.StringIO()
+            writer = csv.writer(buf)
+            rows_in_buf = 0
+    flush(buf)
+
+
+def _render_csv_cell(value):
+    if value is None:
+        return ""
+    if isinstance(value, bool):
+        return "true" if value else "false"
+    if isinstance(value, float):
+        if math.isnan(value):
+            return ""
+        # COPY parses integer columns strictly: "1509.0" is rejected even though
+        # INSERT VALUES would auto-cast it. Pandas promotes int columns to float
+        # whenever the column contains a NaN, so we render whole-valued floats
+        # as ints to keep round-trip compatibility.
+        as_float = float(value)
+        if as_float.is_integer():
+            return str(int(as_float))
+        return repr(as_float)
+    return value
 
 
 def get_season(release_date: datetime.date) -> models.Season:

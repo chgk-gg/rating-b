@@ -113,61 +113,73 @@ def delete_previous_results(release_id):
 
 
 def save_player_rating(release_id: int, player_rating: PlayerRating):
+    columns = ["release_id", "player_id", "rating", "rating_change", "place"]
     player_ratings = (
         {
             "release_id": release_id,
             "player_id": player_id,
-            "rating": player["rating"],
-            "rating_change": ((player["rating"] - player["prev_rating"]) if player["prev_rating"] else "NULL"),
+            "rating": round(player["rating"]),
+            "rating_change": (round(player["rating"] - player["prev_rating"]) if player["prev_rating"] else None),
             "place": player["place"],
         }
         for player_id, player in player_rating.data.iterrows()
         if player["rating"] > 0
     )
-    db_tools.fast_insert("player_rating", player_ratings)
+    db_tools.fast_copy("player_rating", player_ratings, columns)
 
 
 def save_team_ratings(release_id: int, teams: pd.DataFrame):
+    columns = ["release_id", "team_id", "rating", "trb", "rating_change", "place", "place_change"]
     team_ratings = (
         {
             "release_id": release_id,
             "team_id": team_id,
-            "rating": team["rating"],
-            "trb": team["trb"],
-            "rating_change": ((team["rating"] - team["prev_rating"]) if team["prev_rating"] else "NULL"),
-            "place": team["place"] or "NULL",
-            "place_change": ((decimal.Decimal(team["place"]) - team["prev_place"]) if team["prev_place"] else "NULL"),
+            "rating": round(team["rating"]),
+            "trb": round(team["trb"]),
+            "rating_change": (round(team["rating"] - team["prev_rating"]) if team["prev_rating"] else None),
+            "place": team["place"] or None,
+            "place_change": ((decimal.Decimal(team["place"]) - team["prev_place"]) if team["prev_place"] else None),
         }
         for team_id, team in teams.iterrows()
     )
-    db_tools.fast_insert("team_rating", team_ratings)
+    db_tools.fast_copy("team_rating", team_ratings, columns)
 
 
 def save_player_rating_by_tournament(release_id: int, player_rating: PlayerRating):
+    columns = [
+        "release_id",
+        "player_id",
+        "tournament_result_id",
+        "tournament_id",
+        "initial_score",
+        "weeks_since_tournament",
+        "cur_score",
+    ]
+    active_bonuses = player_rating.data.loc[player_rating.data["rating"] != 0, "top_bonuses"]
     bonuses = (
         {
             "release_id": release_id,
             "player_id": player_id,
-            "tournament_result_id": rating_by_trnmt.tournament_result_id or "NULL",
-            "tournament_id": rating_by_trnmt.tournament_id or "NULL",
-            "initial_score": rating_by_trnmt.initial_score,
+            "tournament_result_id": rating_by_trnmt.tournament_result_id or None,
+            "tournament_id": rating_by_trnmt.tournament_id or None,
+            "initial_score": round(rating_by_trnmt.initial_score) if rating_by_trnmt.initial_score is not None else None,
             "weeks_since_tournament": rating_by_trnmt.weeks_since_tournament,
-            "cur_score": rating_by_trnmt.cur_score,
+            "cur_score": round(rating_by_trnmt.cur_score),
         }
-        for player_id, player in player_rating.data.iterrows()
-        if player["rating"] != 0
-        for rating_by_trnmt in player["top_bonuses"]
+        for player_id, top_bonuses in active_bonuses.items()
+        for rating_by_trnmt in top_bonuses
     )
-    db_tools.fast_insert("player_rating_by_tournament", bonuses)
+    db_tools.fast_copy("player_rating_by_tournament", bonuses, columns)
 
 
 def save_tournaments_in_release(release_id: int, tournaments: Iterable[trnmt.Tournament]):
+    columns = ["release_id", "tournament_id"]
     tournaments_in_release = (
         {"release_id": release_id, "tournament_id": tournament.id}
         for tournament in tournaments
         if tournament.is_in_maii_rating
     )
-    db_tools.fast_insert("tournament_in_release", tournaments_in_release)
+    db_tools.fast_copy("tournament_in_release", tournaments_in_release, columns)
 
 
 # Saves tournament bonuses that were already calculated.
@@ -175,26 +187,42 @@ def dump_team_bonuses_for_tournament(trnmt: trnmt.Tournament):
     with connection.cursor() as cursor:
         cursor.execute(f"delete from {SCHEMA_NAME}.tournament_result where tournament_id = {trnmt.id}")
 
-    tournament_results = [
+    columns = [
+        "tournament_id",
+        "team_id",
+        "mp",
+        "bp",
+        "m",
+        "rating",
+        "d1",
+        "d2",
+        "rating_change",
+        "r",
+        "rt",
+        "rb",
+        "rg",
+        "is_in_maii_rating",
+    ]
+    tournament_results = (
         {
             "tournament_id": trnmt.id,
             "team_id": team["team_id"],
             "mp": team["expected_place"],
-            "bp": team["score_pred"],
+            "bp": round(team["score_pred"]),
             "m": team["position"],
-            "rating": team["score_real"],
-            "d1": team["D1"],
-            "d2": team["D2"],
-            "rating_change": team["bonus"],
-            "r": team["r"],
-            "rt": team["rt"],
-            "rb": team["rb"],
-            "rg": team["rg"],
-            "is_in_maii_rating": "TRUE" if team["heredity"] else "FALSE",
+            "rating": round(team["score_real"]),
+            "d1": round(team["D1"]),
+            "d2": round(team["D2"]),
+            "rating_change": round(team["bonus"]),
+            "r": round(team["r"]),
+            "rt": round(team["rt"]),
+            "rb": round(team["rb"]),
+            "rg": round(team["rg"]),
+            "is_in_maii_rating": bool(team["heredity"]),
         }
         for _, team in trnmt.data.iterrows()
-    ]
-    db_tools.fast_insert("tournament_result", tournament_results)
+    )
+    db_tools.fast_copy("tournament_result", tournament_results, columns)
 
 
 def dump_rating_for_next_release(old_release: models.Release, teams_with_updated_rating: List[Tuple[int, int]]):
@@ -306,6 +334,12 @@ def calc_all_releases(first_to_calc: datetime.date, last_to_calc: datetime.date 
     n_releases_calculated = 0
     last_day_to_calc = last_to_calc + datetime.timedelta(days=7)
     while next_release_date <= last_day_to_calc:
+        # Each release has a multi-minute pure-Python calc phase during which the
+        # DB connection sits idle; intermediate NAT/firewall/pooler hops can drop
+        # the TCP socket and the subsequent COPY then fails with "server closed
+        # the connection unexpectedly". Force a fresh connection per release so
+        # the long idle stretch never matters.
+        connection.close()
         calc_release(next_release_date=next_release_date)
         n_releases_calculated += 1
         next_release_date += datetime.timedelta(days=7)
