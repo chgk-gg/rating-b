@@ -1,7 +1,9 @@
 import pandas as pd
 import numpy as np
 import logging
-from typing import Any, Tuple, Set, List, Dict
+from collections import defaultdict
+from dataclasses import dataclass
+from typing import Any, Optional, Tuple, Set, List, Dict
 import numpy.typing as npt
 from .constants import (
     D2_MULTIPLIER,
@@ -23,6 +25,13 @@ logger = logging.getLogger(__name__)
 
 class EmptyTournamentException(Exception):
     pass
+
+
+@dataclass(frozen=True)
+class RosterEntry:
+    team_id: int
+    player_id: int
+    flag: Optional[str]
 
 
 class Tournament:
@@ -58,10 +67,20 @@ class Tournament:
         if any(team["position"] > len(teams) for team in teams.values()):
             raise EmptyTournamentException("There are teams with impossible positions")
 
-        for team_player in trnmt_from_db.roster_set.all():
+        rosters = list(trnmt_from_db.roster_set.all())
+        chosen_team_by_player = self.deduplicate_rosters(
+            [RosterEntry(tp.team_id, tp.player_id, tp.flag) for tp in rosters if tp.team_id in teams]
+        )
+        for team_player in rosters:
             if team_player.team_id not in teams:
                 logger.debug(
                     f"Tournament {self.id}, team {team_player.team_id}: player {team_player.player_id} is in roster but the team did not play there!"
+                )
+                continue
+            if chosen_team_by_player[team_player.player_id] != team_player.team_id:
+                logger.debug(
+                    f"Tournament {self.id}: player {team_player.player_id} rostered on multiple teams; "
+                    f"keeping team {chosen_team_by_player[team_player.player_id]}, dropping from team {team_player.team_id}"
                 )
                 continue
             teams[team_player.team_id]["teamMembers"].append(team_player.player_id)
@@ -166,6 +185,23 @@ class Tournament:
         if ttype in models.TRNMT_TYPES:
             return SYNCHRONOUS_TOURNAMENT_COEFFICIENT
         raise Exception(f"tournament type {ttype} is not supported!")
+
+    @staticmethod
+    def deduplicate_rosters(roster_entries: List[RosterEntry]) -> Dict[int, int]:
+        """Map each player_id to the single team_id they count for in this tournament.
+
+        A player rostered on several teams is kept on the base ("Б") team;
+        if the flag ties (several base teams, or none), the smallest team_id wins.
+        """
+        entries_by_player: Dict[int, List[RosterEntry]] = defaultdict(list)
+        for entry in roster_entries:
+            entries_by_player[entry.player_id].append(entry)
+
+        chosen: Dict[int, int] = {}
+        for player_id, entries in entries_by_player.items():
+            base_team_ids = sorted(entry.team_id for entry in entries if entry.flag == "Б")
+            chosen[player_id] = base_team_ids[0] if base_team_ids else min(entry.team_id for entry in entries)
+        return chosen
 
     @staticmethod
     def adjust_for_missing_rosters(teams_without_rosters: List[int], teams: Dict):
