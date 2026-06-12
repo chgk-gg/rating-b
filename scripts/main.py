@@ -274,7 +274,7 @@ def calc_release(next_release_date: datetime.date):
     release_hash = fingerprint(table_rows)
     if release_hash == next_release.hash:
         logger.info(f"Release {next_release.id} unchanged; skipping write")
-        return
+        return len(tournaments)
 
     logger.info("hashes are different, updating release")
     with transaction.atomic():
@@ -295,17 +295,27 @@ def calc_release(next_release_date: datetime.date):
     next_release.q = new_teams.q
     next_release.save()
 
+    return len(tournaments)
+
 
 # Calculates all releases starting from FIRST_NEW_RELEASE until current date
 def calc_all_releases(first_to_calc: datetime.date, last_to_calc: datetime.date = datetime.date.today()):
     next_release_date = first_to_calc
     time_started = datetime.datetime.now()
     n_releases_calculated = 0
+    n_tournaments_total = 0
     last_day_to_calc = last_to_calc + datetime.timedelta(days=7)
     while next_release_date <= last_day_to_calc:
-        calc_release(next_release_date=next_release_date)
+        release_started = datetime.datetime.now()
+        n_tournaments = calc_release(next_release_date=next_release_date)
+        release_time = datetime.datetime.now() - release_started
+        logger.info(f"Release {next_release_date} done in {release_time}, included {n_tournaments} tournaments")
         n_releases_calculated += 1
+        n_tournaments_total += n_tournaments
         next_release_date += datetime.timedelta(days=7)
     time_spent = datetime.datetime.now() - time_started
-    logger.info(f"Done! Releases calculated: {n_releases_calculated}")
-    logger.info(f"Total time spent: {time_spent}, time per release: {time_spent / n_releases_calculated}")
+    logger.info(f"Done! Releases calculated: {n_releases_calculated}, tournaments included: {n_tournaments_total}")
+    logger.info(
+        f"Total time spent: {time_spent}, time per release: {time_spent / n_releases_calculated}, "
+        f"time per tournament: {time_spent / n_tournaments_total if n_tournaments_total else 'n/a'}"
+    )
