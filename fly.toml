@@ -15,9 +15,6 @@ kill_timeout = "5s"
   PORT = "8000"
   PRIMARY_REGION = "ams"
 
-[processes]
-  cron = "supercronic /app/crontab"
-
 [[statics]]
   guest_path = "/code/static"
   url_prefix = "/static/"
