@@ -1,13 +1,14 @@
 import datetime
 import decimal
 import sys
+import time
 import pandas as pd
 import numpy as np
 import logging
 from django.utils import timezone
 from typing import Iterable, List, Tuple
 from dotenv import load_dotenv
-from django.db import connection, transaction
+from django.db import OperationalError, connection, connections, transaction
 
 from b import models
 
@@ -298,6 +299,24 @@ def calc_release(next_release_date: datetime.date):
     return len(tournaments)
 
 
+# calc_release is idempotent (all writes happen in one fingerprint-guarded transaction),
+# so on transient DB errors like statement timeouts we can safely redo the whole step.
+def calc_release_with_retries(next_release_date: datetime.date, max_attempts: int = 3):
+    for attempt in range(1, max_attempts + 1):
+        try:
+            return calc_release(next_release_date=next_release_date)
+        except OperationalError as e:
+            if attempt == max_attempts:
+                raise
+            delay = 30 * attempt
+            logger.warning(
+                f"Attempt {attempt}/{max_attempts} for release {next_release_date} failed: {e}. "
+                f"Retrying in {delay} seconds"
+            )
+            connections.close_all()
+            time.sleep(delay)
+
+
 # Calculates all releases starting from FIRST_NEW_RELEASE until current date
 def calc_all_releases(first_to_calc: datetime.date, last_to_calc: datetime.date = datetime.date.today()):
     next_release_date = first_to_calc
@@ -307,7 +326,7 @@ def calc_all_releases(first_to_calc: datetime.date, last_to_calc: datetime.date 
     last_day_to_calc = last_to_calc + datetime.timedelta(days=7)
     while next_release_date <= last_day_to_calc:
         release_started = datetime.datetime.now()
-        n_tournaments = calc_release(next_release_date=next_release_date)
+        n_tournaments = calc_release_with_retries(next_release_date=next_release_date)
         release_time = datetime.datetime.now() - release_started
         logger.info(f"Release {next_release_date} done in {release_time}, included {n_tournaments} tournaments")
         n_releases_calculated += 1
