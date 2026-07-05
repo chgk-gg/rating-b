@@ -12,4 +12,4 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         new_release_date = datetime.date(*map(int, options["new_release_date"].split("-")))
-        main.calc_release(new_release_date)
+        main.calc_release_with_retries(new_release_date)
