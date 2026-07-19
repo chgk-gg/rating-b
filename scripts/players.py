@@ -101,7 +101,11 @@ class PlayerRating(DataFrameBacked):
         def leave_top_N(
             v: List[models.Player_rating_by_tournament],
         ) -> List[models.Player_rating_by_tournament]:
-            return sorted(v, key=lambda x: -x.raw_cur_score)[:N_BEST_TOURNAMENTS_FOR_PLAYER_RATING]
+            return sorted(
+                v,
+                # tournament_id and tournament_result_id break ties to make sorting deterministic
+                key=lambda x: (-x.raw_cur_score, x.tournament_id or 0, x.tournament_result_id or 0),
+            )[:N_BEST_TOURNAMENTS_FOR_PLAYER_RATING]
 
         self.data["top_bonuses"] = self.data["top_bonuses"].map(leave_top_N)
 

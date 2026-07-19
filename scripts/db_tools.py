@@ -58,7 +58,12 @@ def get_base_teams_for_players(release_date: datetime.date) -> pd.Series:
         .values("player_id", "base_team_id", "start_date")
     )
     bs_pd = pd.DataFrame(base_teams)
-    return bs_pd.sort_values("start_date").groupby("player_id").last().base_team_id.astype("Int64")
+    return (
+        bs_pd.sort_values(["start_date", "base_team_id"], kind="stable")  # base_team_id breaks ties
+        .groupby("player_id")
+        .last()
+        .base_team_id.astype("Int64")
+    )
 
 
 def get_teams_with_new_players(old_release: datetime.date, new_release: datetime.date) -> List[int]:

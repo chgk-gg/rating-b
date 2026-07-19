@@ -32,7 +32,7 @@ def get_team_rating(release_id: int) -> TeamRating:
     teams_list = list(
         models.Team_rating.objects.filter(release_id=release_id)
         .values("team_id", "rating", "trb", "place")
-        .order_by("-rating")
+        .order_by("-rating", "team_id")  # team_id breaks ties to make order deterministic
     )
     return TeamRating(teams_list=teams_list)
 
