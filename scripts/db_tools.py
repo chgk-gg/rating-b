@@ -1,5 +1,8 @@
 import datetime
+import decimal
+from functools import lru_cache
 from typing import Dict, List, Iterable
+from django.apps import apps
 from django.db.models import F, Q
 from django.db import connection
 import logging
@@ -9,16 +12,75 @@ from .constants import SCHEMA_NAME
 
 logger = logging.getLogger(__name__)
 
+# Rows are canonicalized to exactly what Postgres will store before they are either
+# hashed (changes.fingerprint) or inserted (fast_insert): floats bound for integer or
+# decimal columns carry extra precision that the column type discards, and a release
+# fingerprint computed from that extra precision differs on sub-storage float jitter,
+# forcing rewrites of releases whose stored rows are unchanged.
+# Rounding matches Postgres's numeric -> integer/numeric(n) cast (ties away from
+# zero, not to even), which is how these values were rounded when the cast did it.
+# Needs its own context because scripts.main sets the global decimal precision to 1.
+_ROUNDING_CONTEXT = decimal.Context(prec=28)
+
+_INTEGER_FIELD_TYPES = {
+    "AutoField",
+    "BigAutoField",
+    "SmallAutoField",
+    "IntegerField",
+    "BigIntegerField",
+    "SmallIntegerField",
+    "PositiveIntegerField",
+    "PositiveBigIntegerField",
+    "PositiveSmallIntegerField",
+}
+
+
+def round_half_away(value) -> int:
+    return int(
+        decimal.Decimal(str(value)).quantize(
+            decimal.Decimal("1"), rounding=decimal.ROUND_HALF_UP, context=_ROUNDING_CONTEXT
+        )
+    )
+
+
+@lru_cache(maxsize=None)
+def _fields_by_column(table: str) -> dict:
+    model = next(model for model in apps.get_models() if model._meta.db_table == table)
+    return {field.column: field for field in model._meta.fields}
+
+
+def canonicalize_row(table: str, row: dict) -> dict:
+    fields = _fields_by_column(table)
+
+    def canonicalize(column, value):
+        # Strings are SQL fragments like "NULL"/"TRUE"; leave them (and unknown columns) alone.
+        if isinstance(value, str) or value is None or column not in fields:
+            return value
+        field = fields[column]
+        target = field.target_field if field.is_relation else field
+        internal_type = target.get_internal_type()
+        if internal_type in _INTEGER_FIELD_TYPES:
+            return round_half_away(value)
+        if internal_type == "DecimalField":
+            return decimal.Decimal(str(value)).quantize(
+                decimal.Decimal(1).scaleb(-target.decimal_places, context=_ROUNDING_CONTEXT),
+                rounding=decimal.ROUND_HALF_UP,
+                context=_ROUNDING_CONTEXT,
+            )
+        return value
+
+    return {column: canonicalize(column, value) for column, value in row.items()}
+
 
 def fast_insert(table: str, data: Iterable[dict], batch_size: int = 5000):
     """
-    Inserts data from all dicts in an iterable.
+    Inserts data from all dicts in an iterable, canonicalized to the column types.
     :param table: table to be updated
     :param data: iterable of uniform dicts
     :param batch_size: max number of rows to be inserted in a single query
     :return:
     """
-    data_iter = iter(data)
+    data_iter = (canonicalize_row(table, row) for row in data)
 
     try:
         first_item = next(data_iter)
