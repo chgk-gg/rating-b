@@ -122,7 +122,7 @@ def build_team_rating_rows(release_id: int, teams: pd.DataFrame) -> List[dict]:
             "trb": team["trb"],
             "rating_change": ((team["rating"] - team["prev_rating"]) if team["prev_rating"] else "NULL"),
             "place": team["place"] or "NULL",
-            "place_change": ((team["place"] - team["prev_place"]) if team["prev_place"] else "NULL"),
+            "place_change": ((float(team["place"]) - float(team["prev_place"])) if team["prev_place"] else "NULL"),
         }
         for team_id, team in teams.iterrows()
     ]
