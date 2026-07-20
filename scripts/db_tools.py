@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 # forcing rewrites of releases whose stored rows are unchanged.
 # Rounding matches Postgres's numeric -> integer/numeric(n) cast (ties away from
 # zero, not to even), which is how these values were rounded when the cast did it.
-# Needs its own context because scripts.main sets the global decimal precision to 1.
+# Uses an explicit context so the precision is independent of any global decimal state.
 _ROUNDING_CONTEXT = decimal.Context(prec=28)
 
 _INTEGER_FIELD_TYPES = {

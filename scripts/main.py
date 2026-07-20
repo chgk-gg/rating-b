@@ -1,5 +1,4 @@
 import datetime
-import decimal
 import sys
 import time
 import pandas as pd
@@ -23,8 +22,6 @@ from .constants import SCHEMA_NAME
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-
-decimal.getcontext().prec = 1
 
 
 # Reads the teams rating for given release_id.
@@ -125,7 +122,7 @@ def build_team_rating_rows(release_id: int, teams: pd.DataFrame) -> List[dict]:
             "trb": team["trb"],
             "rating_change": ((team["rating"] - team["prev_rating"]) if team["prev_rating"] else "NULL"),
             "place": team["place"] or "NULL",
-            "place_change": ((decimal.Decimal(team["place"]) - team["prev_place"]) if team["prev_place"] else "NULL"),
+            "place_change": ((team["place"] - team["prev_place"]) if team["prev_place"] else "NULL"),
         }
         for team_id, team in teams.iterrows()
     ]
