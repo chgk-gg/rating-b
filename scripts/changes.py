@@ -1,5 +1,3 @@
-from typing import Dict, List
-
 import mmh3
 
 from . import db_tools
@@ -18,7 +16,7 @@ def _row_hash(table: str, row: dict) -> int:
 # The per-row hashes are summed (commutative), making the result independent of row order; the
 # table name is folded into each row hash so identical rows in different tables do
 # not collide. The result is mapped into signed 64-bit range for Postgres bigint.
-def fingerprint(table_rows: Dict[str, List[dict]]) -> int:
+def fingerprint(table_rows: dict[str, list[dict]]) -> int:
     total = 0
     for table, rows in table_rows.items():
         for row in rows:

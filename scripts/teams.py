@@ -1,22 +1,22 @@
-from .tools import calc_tech_rating, DataFrameBacked
-from .tournament import Tournament
-from .players import PlayerRating
-from .constants import (
-    TOP_TEAMS_FOR_Q_CALCULATION,
-    PLAYERS_IN_TEAM_FOR_Q_CALCULATION,
-    MAX_BONUS,
-    TEAMS_COUNT_FOR_BP,
-    NEW_TEAMS_LOWERING_COEFFICIENT,
-)
-import pandas as pd
 import numpy as np
-from typing import List, Tuple
+import pandas as pd
+
+from .constants import (
+    MAX_BONUS,
+    NEW_TEAMS_LOWERING_COEFFICIENT,
+    PLAYERS_IN_TEAM_FOR_Q_CALCULATION,
+    TEAMS_COUNT_FOR_BP,
+    TOP_TEAMS_FOR_Q_CALCULATION,
+)
+from .players import PlayerRating
+from .tools import DataFrameBacked, calc_tech_rating
+from .tournament import Tournament
 
 
 class TeamRating(DataFrameBacked):
     def __init__(self, filename=None, teams_list=None):
         if not (filename or teams_list):
-            raise Exception("provide release id, or file with rating, or list of dicts!")
+            raise ValueError("provide release id, or file with rating, or list of dicts!")
         self.q = 1
         if teams_list:
             self.data = pd.DataFrame(teams_list)
@@ -43,9 +43,7 @@ class TeamRating(DataFrameBacked):
         rb_raws = (
             players_release.data[players_release.data["base_team_id"].isin(top_h_ids)]
             .groupby("base_team_id")["rating"]
-            .apply(
-                lambda x: (calc_tech_rating(x.values) if len(x.values) >= PLAYERS_IN_TEAM_FOR_Q_CALCULATION else None)
-            )
+            .apply(lambda x: calc_tech_rating(x.values) if len(x.values) >= PLAYERS_IN_TEAM_FOR_Q_CALCULATION else None)
             .dropna()
         )
         top_h = top_h.join(rb_raws, rsuffix="_raw", how="inner")
@@ -63,7 +61,7 @@ class TeamRating(DataFrameBacked):
         return self.data.trb.get(team_id, 0)
 
     # Returns tuples of team IDs with changed rating along with new rating
-    def update_ratings_for_changed_teams(self, changed_teams) -> List[Tuple[int, int]]:
+    def update_ratings_for_changed_teams(self, changed_teams) -> list[tuple[int, int]]:
         existing_teams = [t for t in changed_teams if t in set(self.data.index)]
         self.data["old_release_rating"] = self.data["rating"]
         self.data.loc[existing_teams, "rating"] = np.maximum(

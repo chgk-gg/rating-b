@@ -1,24 +1,27 @@
-import pandas as pd
-import numpy as np
 import logging
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, Optional, Tuple, Set, List, Dict
+from typing import Any
+
+import numpy as np
 import numpy.typing as npt
+import pandas as pd
+
+from b import models
+from scripts import roster_continuity, tools
+
 from .constants import (
-    D2_MULTIPLIER,
-    D2_EXPONENT_DENOMINATOR,
     D1_NEGATIVE_LOWERING_COEFFICIENT,
-    MIN_TOURNAMENT_TO_RELEASE_RATING_RATIO,
-    TEAMS_COUNT_FOR_BP,
+    D2_EXPONENT_DENOMINATOR,
+    D2_MULTIPLIER,
     MAX_BONUS,
     MIN_LEGIONNAIRES_TO_REDUCE_BONUS,
+    MIN_TOURNAMENT_TO_RELEASE_RATING_RATIO,
     REGULAR_TOURNAMENT_COEFFICIENT,
     STRICT_SYNCHRONOUS_TOURNAMENT_COEFFICIENT,
     SYNCHRONOUS_TOURNAMENT_COEFFICIENT,
+    TEAMS_COUNT_FOR_BP,
 )
-from scripts import tools, roster_continuity
-from b import models
 
 logger = logging.getLogger(__name__)
 
@@ -31,7 +34,7 @@ class EmptyTournamentException(Exception):
 class RosterEntry:
     team_id: int
     player_id: int
-    flag: Optional[str]
+    flag: str | None
 
 
 class Tournament:
@@ -151,7 +154,7 @@ class Tournament:
         ] *= 2 / self.data[self.data.heredity & (self.data.n_legs >= MIN_LEGIONNAIRES_TO_REDUCE_BONUS)]["n_legs"]
         self.data.sort_values(by=["position", "name"], inplace=True)
 
-    def apply_bonuses(self, team_rating, player_rating) -> Tuple[Any, Any]:
+    def apply_bonuses(self, team_rating, player_rating) -> tuple[Any, Any]:
         for i, team in self.data.iterrows():
             if team["heredity"]:
                 team_rating.data.at[team["team_id"], "rating"] += team["bonus"]
@@ -168,7 +171,7 @@ class Tournament:
                 player_rating.data.at[player_id, "top_bonuses"].append(bonus)
         return team_rating, player_rating
 
-    def get_new_player_ids(self, existing_players: Set[int]) -> Set[int]:
+    def get_new_player_ids(self, existing_players: set[int]) -> set[int]:
         res = set()
         for i, team in self.data.iterrows():
             for player_id in team["teamMembers"]:
@@ -184,27 +187,27 @@ class Tournament:
             return STRICT_SYNCHRONOUS_TOURNAMENT_COEFFICIENT
         if ttype in models.TRNMT_TYPES:
             return SYNCHRONOUS_TOURNAMENT_COEFFICIENT
-        raise Exception(f"tournament type {ttype} is not supported!")
+        raise ValueError(f"tournament type {ttype} is not supported!")
 
     @staticmethod
-    def deduplicate_rosters(roster_entries: List[RosterEntry]) -> Dict[int, int]:
+    def deduplicate_rosters(roster_entries: list[RosterEntry]) -> dict[int, int]:
         """Map each player_id to the single team_id they count for in this tournament.
 
         A player rostered on several teams is kept on the base ("Б") team;
         if the flag ties (several base teams, or none), the smallest team_id wins.
         """
-        entries_by_player: Dict[int, List[RosterEntry]] = defaultdict(list)
+        entries_by_player: dict[int, list[RosterEntry]] = defaultdict(list)
         for entry in roster_entries:
             entries_by_player[entry.player_id].append(entry)
 
-        chosen: Dict[int, int] = {}
+        chosen: dict[int, int] = {}
         for player_id, entries in entries_by_player.items():
             base_team_ids = sorted(entry.team_id for entry in entries if entry.flag == "Б")
             chosen[player_id] = base_team_ids[0] if base_team_ids else min(entry.team_id for entry in entries)
         return chosen
 
     @staticmethod
-    def adjust_for_missing_rosters(teams_without_rosters: List[int], teams: Dict):
+    def adjust_for_missing_rosters(teams_without_rosters: list[int], teams: dict):
         if not teams_without_rosters:
             return teams
 

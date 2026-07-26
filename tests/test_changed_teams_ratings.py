@@ -1,4 +1,5 @@
 import unittest
+
 from dotenv import load_dotenv
 
 load_dotenv("../.env.test")
@@ -7,8 +8,8 @@ import django
 
 django.setup()
 
-from scripts.teams import TeamRating
 from scripts.constants import NEW_TEAMS_LOWERING_COEFFICIENT, TEAMS_COUNT_FOR_BP
+from scripts.teams import TeamRating
 
 
 # TeamRating needs at least TEAMS_COUNT_FOR_BP teams to calculate C, so we pad the teams

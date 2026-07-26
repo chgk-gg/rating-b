@@ -1,6 +1,7 @@
-import unittest
-from scripts.roster_continuity import select_rule, Pre2021Rule, MAIIRule2021to2022, MAIIRuleFrom2022
 import datetime
+import unittest
+
+from scripts.roster_continuity import MAIIRule2021to2022, MAIIRuleFrom2022, Pre2021Rule, select_rule
 
 
 class TestRosterContinuity(unittest.TestCase):

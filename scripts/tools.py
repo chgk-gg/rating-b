@@ -1,9 +1,10 @@
 import copy
-import numpy as np
-import pandas as pd
 import datetime
+
+import numpy as np
 import numpy.typing as npt
-from typing import Optional
+import pandas as pd
+
 from .constants import TECHNICAL_RATING_DISTRIBUTION, TECHNICAL_RATING_RELEVANT_PLAYERS
 
 
@@ -30,7 +31,7 @@ def rolling_window(a: npt.ArrayLike, window: int) -> npt.ArrayLike:
     return np.lib.stride_tricks.as_strided(a, shape=shape, strides=strides)
 
 
-def calc_tech_rating(players_ratings: npt.ArrayLike, q: Optional[float] = None):
+def calc_tech_rating(players_ratings: npt.ArrayLike, q: float | None = None):
     pr_sorted = np.sort(players_ratings)[::-1]
     coeffs = np.zeros(pr_sorted.size)
     coeffs[:TECHNICAL_RATING_RELEVANT_PLAYERS] = TECHNICAL_RATING_DISTRIBUTION[: coeffs.size]
