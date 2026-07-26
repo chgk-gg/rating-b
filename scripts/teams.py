@@ -63,7 +63,6 @@ class TeamRating(DataFrameBacked):
         return self.data.trb.get(team_id, 0)
 
     # Returns tuples of team IDs with changed rating along with new rating
-    # TODO: add a separate test for this!
     def update_ratings_for_changed_teams(self, changed_teams) -> List[Tuple[int, int]]:
         existing_teams = [t for t in changed_teams if t in set(self.data.index)]
         self.data["old_release_rating"] = self.data["rating"]
