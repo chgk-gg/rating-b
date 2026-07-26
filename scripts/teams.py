@@ -26,6 +26,7 @@ class TeamRating(DataFrameBacked):
             raw_rating.columns = ["team_id", "place", "rating", "trb"]
             self.data = raw_rating
         self.data.set_index("team_id", inplace=True)
+        self.data["rating"] = self.data["rating"].astype("float64")
         self.data["prev_rating"] = 0
         self.data["prev_place"] = self.data["place"]
         self.c = self.calc_c()
@@ -65,7 +66,6 @@ class TeamRating(DataFrameBacked):
     # TODO: add a separate test for this!
     def update_ratings_for_changed_teams(self, changed_teams) -> List[Tuple[int, int]]:
         existing_teams = [t for t in changed_teams if t in set(self.data.index)]
-        self.data["rating"] = self.data["rating"].astype("float64")
         self.data["old_release_rating"] = self.data["rating"]
         self.data.loc[existing_teams, "rating"] = np.maximum(
             self.data.loc[existing_teams, "rating"],
