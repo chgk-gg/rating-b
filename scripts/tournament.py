@@ -165,7 +165,7 @@ class Tournament:
                     cur_score=team["score_real"],
                 )
                 bonus.raw_cur_score = bonus.cur_score
-                player_rating.data.loc[player_id]["top_bonuses"].append(bonus)
+                player_rating.data.at[player_id, "top_bonuses"].append(bonus)
         return team_rating, player_rating
 
     def get_new_player_ids(self, existing_players: Set[int]) -> Set[int]:
