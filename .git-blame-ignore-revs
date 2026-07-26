@@ -3,3 +3,6 @@
 
 # Switch from Black to ruff
 3030622b772b5b5383504cfd6b68fa3836d6a52a
+
+# ruff 0.16 with a lot of a new rules
+07f2d77f102f8476aa1ef24fc84b7783111aa69f
