@@ -2,7 +2,6 @@ from django.db import models
 
 from scripts import constants
 
-
 ### Tables from 'public' scheme. Read-only.
 
 

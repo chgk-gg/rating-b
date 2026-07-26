@@ -1,10 +1,12 @@
 line-length = 120
 indent-width = 4
 
-[lint]
-select = ["E4", "E7", "E9", "F"]
-
 [lint.per-file-ignores]
 "**/{tests}/*" = ["E402"]
+# Django's Meta options are a config namespace, not mutable class state.
+"**/models.py" = ["RUF012"]
+
+[lint.pep8-naming]
+ignore-names = ["rating-b"]
 
 [format]

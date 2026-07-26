@@ -9,15 +9,15 @@ import django
 
 django.setup()
 
-from scripts.main import calc_release, calc_all_releases
 from b.models import (
+    Player_rating,
+    Player_rating_by_tournament,
+    Release,
     Team_rating,
     Tournament_in_release,
-    Player_rating_by_tournament,
-    Player_rating,
     Tournament_result,
-    Release,
 )
+from scripts.main import calc_all_releases, calc_release
 
 
 class TestReleases(unittest.TestCase):

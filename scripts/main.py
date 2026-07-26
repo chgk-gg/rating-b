@@ -1,23 +1,23 @@
 import datetime
+import logging
 import sys
 import time
-import pandas as pd
+from collections.abc import Iterable
+
 import numpy as np
-import logging
-from django.utils import timezone
-from typing import Iterable, List, Tuple
-from dotenv import load_dotenv
+import pandas as pd
 from django.db import OperationalError, connection, connections, transaction
+from django.utils import timezone
+from dotenv import load_dotenv
 
 from b import models
 
-from . import db_tools
-from . import tools
+from . import db_tools, tools
 from . import tournament as trnmt
-from .teams import TeamRating
-from .players import PlayerRating
 from .changes import fingerprint
 from .constants import SCHEMA_NAME
+from .players import PlayerRating
+from .teams import TeamRating
 
 load_dotenv()
 
@@ -40,7 +40,7 @@ def make_step_for_teams_and_players(
     initial_players: PlayerRating,
     tournaments: Iterable[trnmt.Tournament],
     new_release: models.Release,
-) -> Tuple[TeamRating, PlayerRating]:
+) -> tuple[TeamRating, PlayerRating]:
     existing_player_ids = set(initial_players.data.index)
     new_player_ids = set()
     for tournament in tournaments:
@@ -57,7 +57,7 @@ def make_step_for_teams_and_players(
     final_players = initial_players.copy()
     if new_player_ids:
         new_players = (
-            pd.DataFrame(({"player_id": player_id, "rating": 0, "top_bonuses": []} for player_id in new_player_ids))
+            pd.DataFrame({"player_id": player_id, "rating": 0, "top_bonuses": []} for player_id in new_player_ids)
             .set_index("player_id")
             .join(db_tools.get_base_teams_for_players(new_release.date), how="left")
         )
@@ -99,7 +99,7 @@ def delete_tournament_result(tournament_id):
         cursor.execute(f"delete from {SCHEMA_NAME}.tournament_result where tournament_id = {tournament_id}")
 
 
-def build_player_rating_rows(release_id: int, player_rating: PlayerRating) -> List[dict]:
+def build_player_rating_rows(release_id: int, player_rating: PlayerRating) -> list[dict]:
     return [
         {
             "release_id": release_id,
@@ -113,7 +113,7 @@ def build_player_rating_rows(release_id: int, player_rating: PlayerRating) -> Li
     ]
 
 
-def build_team_rating_rows(release_id: int, teams: pd.DataFrame) -> List[dict]:
+def build_team_rating_rows(release_id: int, teams: pd.DataFrame) -> list[dict]:
     return [
         {
             "release_id": release_id,
@@ -128,7 +128,7 @@ def build_team_rating_rows(release_id: int, teams: pd.DataFrame) -> List[dict]:
     ]
 
 
-def build_player_rating_by_tournament_rows(release_id: int, player_rating: PlayerRating) -> List[dict]:
+def build_player_rating_by_tournament_rows(release_id: int, player_rating: PlayerRating) -> list[dict]:
     return [
         {
             "release_id": release_id,
@@ -145,7 +145,7 @@ def build_player_rating_by_tournament_rows(release_id: int, player_rating: Playe
     ]
 
 
-def build_tournaments_in_release_rows(release_id: int, tournaments: Iterable[trnmt.Tournament]) -> List[dict]:
+def build_tournaments_in_release_rows(release_id: int, tournaments: Iterable[trnmt.Tournament]) -> list[dict]:
     return [
         {"release_id": release_id, "tournament_id": tournament.id}
         for tournament in tournaments
@@ -154,7 +154,7 @@ def build_tournaments_in_release_rows(release_id: int, tournaments: Iterable[trn
 
 
 # Builds the already-calculated tournament bonuses rows (without touching the DB).
-def build_tournament_result_rows(trnmt: trnmt.Tournament) -> List[dict]:
+def build_tournament_result_rows(trnmt: trnmt.Tournament) -> list[dict]:
     return [
         {
             "tournament_id": trnmt.id,
@@ -176,7 +176,7 @@ def build_tournament_result_rows(trnmt: trnmt.Tournament) -> List[dict]:
     ]
 
 
-def dump_rating_for_next_release(old_release: models.Release, teams_with_updated_rating: List[Tuple[int, int]]):
+def dump_rating_for_next_release(old_release: models.Release, teams_with_updated_rating: list[tuple[int, int]]):
     for team_id, new_rating in teams_with_updated_rating:
         n_changed = old_release.team_rating_set.filter(team_id=team_id).update(rating_for_next_release=new_rating)
         if n_changed != 1:
@@ -187,7 +187,7 @@ def dump_rating_for_next_release(old_release: models.Release, teams_with_updated
 
 
 # Loads tournaments from our DB that finish between given releases.
-def get_tournaments_for_release(old_release: models.Release, new_release: models.Release) -> List[trnmt.Tournament]:
+def get_tournaments_for_release(old_release: models.Release, new_release: models.Release) -> list[trnmt.Tournament]:
     tournaments = []
     n_counted_in_maii_rating = 0
     tournaments_qs = models.Tournament.objects.filter(
@@ -315,21 +315,21 @@ def calc_release_with_retries(next_release_date: datetime.date, max_attempts: in
 
 
 # Calculates all releases starting from FIRST_NEW_RELEASE until current date
-def calc_all_releases(first_to_calc: datetime.date, last_to_calc: datetime.date = datetime.date.today()):
+def calc_all_releases(first_to_calc: datetime.date, last_to_calc: datetime.date):
     next_release_date = first_to_calc
-    time_started = datetime.datetime.now()
+    time_started = time.monotonic()
     n_releases_calculated = 0
     n_tournaments_total = 0
     last_day_to_calc = last_to_calc + datetime.timedelta(days=7)
     while next_release_date <= last_day_to_calc:
-        release_started = datetime.datetime.now()
+        release_started = time.monotonic()
         n_tournaments = calc_release_with_retries(next_release_date=next_release_date)
-        release_time = datetime.datetime.now() - release_started
+        release_time = datetime.timedelta(seconds=time.monotonic() - release_started)
         logger.info(f"Release {next_release_date} done in {release_time}, included {n_tournaments} tournaments")
         n_releases_calculated += 1
         n_tournaments_total += n_tournaments
         next_release_date += datetime.timedelta(days=7)
-    time_spent = datetime.datetime.now() - time_started
+    time_spent = datetime.timedelta(seconds=time.monotonic() - time_started)
     logger.info(f"Done! Releases calculated: {n_releases_calculated}, tournaments included: {n_tournaments_total}")
     logger.info(
         f"Total time spent: {time_spent}, time per release: {time_spent / n_releases_calculated}, "

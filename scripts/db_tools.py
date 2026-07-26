@@ -1,13 +1,16 @@
 import datetime
 import decimal
-from functools import lru_cache
-from typing import Dict, List, Iterable
-from django.apps import apps
-from django.db.models import F, Q
-from django.db import connection
 import logging
+from collections.abc import Iterable
+from functools import cache
+
 import pandas as pd
+from django.apps import apps
+from django.db import connection
+from django.db.models import F, Q
+
 from b import models
+
 from .constants import SCHEMA_NAME
 
 logger = logging.getLogger(__name__)
@@ -38,12 +41,12 @@ _INTEGER_FIELD_TYPES = {
 def round_half_away(value) -> int:
     return int(
         decimal.Decimal(str(value)).quantize(
-            decimal.Decimal("1"), rounding=decimal.ROUND_HALF_UP, context=_ROUNDING_CONTEXT
+            decimal.Decimal(1), rounding=decimal.ROUND_HALF_UP, context=_ROUNDING_CONTEXT
         )
     )
 
 
-@lru_cache(maxsize=None)
+@cache
 def _fields_by_column(table: str) -> dict:
     model = next(model for model in apps.get_models() if model._meta.db_table == table)
     return {field.column: field for field in model._meta.fields}
@@ -128,7 +131,7 @@ def get_base_teams_for_players(release_date: datetime.date) -> pd.Series:
     )
 
 
-def get_teams_with_new_players(old_release: datetime.date, new_release: datetime.date) -> List[int]:
+def get_teams_with_new_players(old_release: datetime.date, new_release: datetime.date) -> list[int]:
     return list(
         models.Season_roster.objects.filter(start_date__gt=old_release, start_date__lte=new_release)
         .values_list("team_id", flat=True)
@@ -136,7 +139,7 @@ def get_teams_with_new_players(old_release: datetime.date, new_release: datetime
     )
 
 
-def get_tournament_end_dates() -> Dict[int, datetime.date]:
+def get_tournament_end_dates() -> dict[int, datetime.date]:
     return {
         tournament["pk"]: tournament["end_datetime"].date()
         for tournament in models.Tournament.objects.all().values("pk", "end_datetime")

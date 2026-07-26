@@ -1,11 +1,12 @@
-import pandas as pd
-from typing import List
 import logging
 
-from .tools import calc_tech_rating, get_age_in_weeks, DataFrameBacked
-from .constants import N_BEST_TOURNAMENTS_FOR_PLAYER_RATING
-from scripts import db_tools, tools
+import pandas as pd
+
 from b import models
+from scripts import db_tools, tools
+
+from .constants import N_BEST_TOURNAMENTS_FOR_PLAYER_RATING
+from .tools import DataFrameBacked, calc_tech_rating, get_age_in_weeks
 
 logger = logging.getLogger(__name__)
 
@@ -13,9 +14,9 @@ logger = logging.getLogger(__name__)
 class PlayerRating(DataFrameBacked):
     def __init__(self, release=None, release_for_squads=None, file_path=None):
         if release is None:
-            raise Exception("no release is passed")
+            raise ValueError("no release is passed")
         if release_for_squads is None:
-            raise Exception("no release for squads is passed")
+            raise ValueError("no release for squads is passed")
 
         if file_path:
             self.data = pd.DataFrame.from_csv(file_path, index_col=0)
@@ -88,8 +89,8 @@ class PlayerRating(DataFrameBacked):
     # Multiplies all existing bonuses by J_i constant
     def reduce_rating(self):
         def reduce_vector(
-            player_ratings: List[models.Player_rating_by_tournament],
-        ) -> List[models.Player_rating_by_tournament]:
+            player_ratings: list[models.Player_rating_by_tournament],
+        ) -> list[models.Player_rating_by_tournament]:
             for player_rating in player_ratings:
                 player_rating.recalc_cur_score()
             return player_ratings
@@ -99,8 +100,8 @@ class PlayerRating(DataFrameBacked):
     # Removes all bonuses except top 7 and updates rating for each player
     def recalc_rating(self):
         def leave_top_N(
-            v: List[models.Player_rating_by_tournament],
-        ) -> List[models.Player_rating_by_tournament]:
+            v: list[models.Player_rating_by_tournament],
+        ) -> list[models.Player_rating_by_tournament]:
             return sorted(
                 v,
                 # tournament_id and tournament_result_id break ties to make sorting deterministic
@@ -109,7 +110,7 @@ class PlayerRating(DataFrameBacked):
 
         self.data["top_bonuses"] = self.data["top_bonuses"].map(leave_top_N)
 
-        def sum_ratings_now(v: List[models.Player_rating_by_tournament]) -> int:
+        def sum_ratings_now(v: list[models.Player_rating_by_tournament]) -> int:
             return sum(x.cur_score for x in v)
 
         self.data["rating"] = self.data["top_bonuses"].map(sum_ratings_now)
