@@ -222,7 +222,6 @@ def teams_to_dump(release_date: datetime.date, teams: TeamRating) -> pd.DataFram
     if cur_season.start + datetime.timedelta(days=90) >= release_date:
         prev_season = db_tools.get_season(release_date - datetime.timedelta(days=180))
         teams_with_rosters |= set(prev_season.season_roster_set.values_list("team_id", flat=True).distinct())
-    teams.data[teams.data.index.isin(teams_with_rosters)]
     n_skipped_teams = len(teams.data[~teams.data.index.isin(teams_with_rosters)])
     if n_skipped_teams:
         logger.debug(f"We exclude from the rating {n_skipped_teams} teams that have no roster for current season.")

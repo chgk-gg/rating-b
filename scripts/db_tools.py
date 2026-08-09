@@ -7,7 +7,8 @@ from functools import cache
 import pandas as pd
 from django.apps import apps
 from django.db import connection
-from django.db.models import F, Q
+from django.db.models import DateField, F, Q, Value
+from django.db.models.functions import Greatest
 
 from b import models
 
@@ -131,9 +132,16 @@ def get_base_teams_for_players(release_date: datetime.date) -> pd.Series:
     )
 
 
+# Teams whose base roster changed between the two releases, so that their rating has to be recalculated from TRB.
+# Teams are allowed to fill in the base roster for a season before that season starts,
+# and these future rosters must not influence the rating for current season.
+# A roster row therefore counts from `max(start_date, season start)` rather than from the date it was entered.
 def get_teams_with_new_players(old_release: datetime.date, new_release: datetime.date) -> list[int]:
+    season = get_season(new_release)
     return list(
-        models.Season_roster.objects.filter(start_date__gt=old_release, start_date__lte=new_release)
+        models.Season_roster.objects.filter(season=season)
+        .annotate(effective_start_date=Greatest("start_date", Value(season.start, output_field=DateField())))
+        .filter(effective_start_date__gt=old_release, effective_start_date__lte=new_release)
         .values_list("team_id", flat=True)
         .distinct()
     )
