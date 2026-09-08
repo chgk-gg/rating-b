@@ -195,11 +195,11 @@ class Team_rating(models.Model):
                 "team",
             ),
         )
-        index_together = [
-            ["release", "team", "rating"],
-            ["release", "team", "rating_change"],
-            ["release", "team", "place"],
-            ["release", "team", "place_change"],
+        indexes = [
+            models.Index(fields=["release", "team", "rating"]),
+            models.Index(fields=["release", "team", "rating_change"]),
+            models.Index(fields=["release", "team", "place"]),
+            models.Index(fields=["release", "team", "place_change"]),
         ]
 
 
@@ -245,11 +245,11 @@ class Player_rating(models.Model):
                 "player",
             ),
         )
-        index_together = [
-            ["release", "player", "rating"],
-            ["release", "player", "rating_change"],
-            ["release", "player", "place"],
-            ["release", "player", "place_change"],
+        indexes = [
+            models.Index(fields=["release", "player", "rating"]),
+            models.Index(fields=["release", "player", "rating_change"]),
+            models.Index(fields=["release", "player", "place"]),
+            models.Index(fields=["release", "player", "place_change"]),
         ]
 
 
@@ -270,8 +270,8 @@ class Team_rating_by_player(models.Model):
                 "player",
             ),
         )
-        index_together = [
-            ["team_rating", "player", "order"],
+        indexes = [
+            models.Index(fields=["team_rating", "player", "order"]),
         ]
 
 
@@ -301,14 +301,14 @@ class Tournament_result(models.Model):
                 "team",
             ),
         )
-        index_together = [
-            ["tournament", "team", "mp"],
-            ["tournament", "team", "bp"],
-            ["tournament", "team", "m"],
-            ["tournament", "team", "rating"],
-            ["tournament", "team", "d1"],
-            ["tournament", "team", "d2"],
-            ["tournament", "team", "rating_change"],
+        indexes = [
+            models.Index(fields=["tournament", "team", "mp"]),
+            models.Index(fields=["tournament", "team", "bp"]),
+            models.Index(fields=["tournament", "team", "m"]),
+            models.Index(fields=["tournament", "team", "rating"]),
+            models.Index(fields=["tournament", "team", "d1"]),
+            models.Index(fields=["tournament", "team", "d2"]),
+            models.Index(fields=["tournament", "team", "rating_change"]),
         ]
 
 
@@ -336,8 +336,8 @@ class Player_rating_by_tournament(models.Model):
             ("release", "player", "tournament_result"),
             ("release", "player", "tournament"),
         )
-        index_together = [
-            ["release", "player", "cur_score"],
+        indexes = [
+            models.Index(fields=["release", "player", "cur_score"]),
         ]
 
     def recalc_cur_score(self):
