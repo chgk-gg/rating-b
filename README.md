@@ -28,8 +28,7 @@ The top directories are:
 * scripts -- functions that actually read the data from DB, compute ratings, and flush the results to the DB, and tests for them.
 
 ## Deployment
-rating-b runs on [Fly](https://fly.io/). Deployment is defined in [`fly.toml`](./fly.toml) and has one process: `supercronic /app/crontab`.
 
-[Supercronic](https://github.com/aptible/supercronic) is [recommended by Fly for cron jobs](https://fly.io/docs/app-guides/supercronic/): it loads environment variables, forwards job logs to stdout and stderr, and handles sigterm signals. We install it in the final section of [`Dockerfile`](./Dockerfile).
+rating-b runs on [Fly](https://fly.io/). Deployment is defined in [`fly.toml`](./fly.toml).
 
-Cron jobs are set up in [`crontab`](./crontab). For now, we recalculate all releases every three hours: this job takes about 30 minutes (as of April 2023), so there’s not much sense in making things more complicated.
+Most of the time, we run 0 replicas of this app. Recalculation is triggered from [rating-ui](https://github.com/chgk-gg/rating-ui) in `RatingCalculationJob`. It uses fly.io’s API to start the machine with rating-b and sets `FIRST_RELEASE_DATE` and `LAST_RELEASE_DATE` env variables. It then monitors the machine and destroys it once recalculation is done. 
