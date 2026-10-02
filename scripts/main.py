@@ -196,6 +196,10 @@ def get_tournaments_for_release(old_release: models.Release, new_release: models
     ).prefetch_related("roster_set", "team_score_set__team")
     if new_release.date <= tools.FIRST_NEW_RELEASE:
         tournaments_qs = tournaments_qs.filter(maii_rating=True)
+
+    # Skipping unfinished tournaments
+    tournaments_qs = tournaments_qs.filter(end_datetime__lte=timezone.now())
+
     for trnmt_from_db in tournaments_qs.order_by("pk"):
         # We need only tournaments with available results of at lease some teams.
         try:
